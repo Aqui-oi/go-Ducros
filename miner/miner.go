@@ -74,6 +74,12 @@ type Miner struct {
 	chain       *core.BlockChain
 	pending     *pending
 	pendingMu   sync.Mutex // Lock protects the pending block
+
+	// PoW mining fields
+	mining    bool           // Mining status
+	miningMu  sync.RWMutex   // Lock for mining status
+	mineStop  chan struct{}  // Stop channel for mining
+	threads   int            // Number of mining threads
 }
 
 // New creates a new miner with provided config.
@@ -170,4 +176,137 @@ func (miner *Miner) getPending() *newPayloadResult {
 	}
 	miner.pending.update(header.Hash(), ret)
 	return ret
+}
+
+// Start starts the mining process with the given number of threads.
+// This is for PoW consensus engines only.
+func (miner *Miner) Start(threads int) error {
+	miner.miningMu.Lock()
+	defer miner.miningMu.Unlock()
+
+	if miner.mining {
+		return fmt.Errorf("mining is already running")
+	}
+
+	if threads <= 0 {
+		threads = 1
+	}
+
+	miner.mining = true
+	miner.threads = threads
+	miner.mineStop = make(chan struct{})
+
+	// Start mining goroutines
+	for i := 0; i < threads; i++ {
+		go miner.mineLoop(miner.mineStop)
+	}
+
+	return nil
+}
+
+// Stop stops the mining process.
+func (miner *Miner) Stop() error {
+	miner.miningMu.Lock()
+	defer miner.miningMu.Unlock()
+
+	if !miner.mining {
+		return fmt.Errorf("mining is not running")
+	}
+
+	close(miner.mineStop)
+	miner.mining = false
+	return nil
+}
+
+// Mining returns whether the miner is currently mining.
+func (miner *Miner) Mining() bool {
+	miner.miningMu.RLock()
+	defer miner.miningMu.RUnlock()
+	return miner.mining
+}
+
+// HashRate returns the current hash rate (always returns 0 for now, can be improved later).
+func (miner *Miner) HashRate() uint64 {
+	// TODO: Implement actual hashrate calculation
+	return 0
+}
+
+// mineLoop is the main mining loop that continuously tries to mine blocks.
+func (miner *Miner) mineLoop(stop <-chan struct{}) {
+	for {
+		select {
+		case <-stop:
+			return
+		default:
+			// Get the current head block
+			header := miner.chain.CurrentBlock()
+			if header == nil {
+				time.Sleep(time.Second)
+				continue
+			}
+
+			// Create a new block to mine
+			timestamp := uint64(time.Now().Unix())
+			parent := miner.chain.GetBlock(header.Hash(), header.Number.Uint64())
+			if parent == nil {
+				time.Sleep(time.Second)
+				continue
+			}
+
+			// Build a new block
+			coinbase := miner.config.PendingFeeRecipient
+			if coinbase == (common.Address{}) {
+				coinbase = miner.config.Etherbase
+			}
+
+			block := miner.chain.GetBlock(parent.Hash(), parent.NumberU64())
+			if block == nil {
+				time.Sleep(time.Second)
+				continue
+			}
+
+			// Generate work
+			result := miner.generateWork(&generateParams{
+				timestamp:   timestamp,
+				forceTime:   true,
+				parentHash:  parent.Hash(),
+				coinbase:    coinbase,
+				random:      common.Hash{},
+				withdrawals: nil,
+				beaconRoot:  nil,
+				noTxs:       false,
+			}, false)
+
+			if result.err != nil {
+				time.Sleep(time.Second)
+				continue
+			}
+
+			// Try to seal the block using the consensus engine
+			resultCh := make(chan *types.Block, 1)
+			if err := miner.engine.Seal(miner.chain, result.block, resultCh, stop); err != nil {
+				time.Sleep(time.Second)
+				continue
+			}
+
+			// Wait for the sealing result
+			select {
+			case block := <-resultCh:
+				if block != nil {
+					// Insert the sealed block into the blockchain
+					_, err := miner.chain.InsertChain([]*types.Block{block})
+					if err != nil {
+						// Block insertion failed, continue mining
+						continue
+					}
+					// Successfully mined a block!
+				}
+			case <-stop:
+				return
+			case <-time.After(30 * time.Second):
+				// Timeout, try again
+				continue
+			}
+		}
+	}
 }

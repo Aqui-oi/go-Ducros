@@ -91,6 +91,10 @@ type Backend interface {
 	Engine() consensus.Engine
 	HistoryPruningCutoff() uint64
 
+	// Mining API
+	Mining() bool
+	Hashrate() uint64
+
 	// This is copied from filters.Backend
 	// eth/filters needs to be initialized from this backend type, so methods needed by
 	// it must also be included here.

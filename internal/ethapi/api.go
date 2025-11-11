@@ -176,6 +176,16 @@ func (api *EthereumAPI) Syncing(ctx context.Context) (interface{}, error) {
 	}, nil
 }
 
+// Mining returns whether the node is currently mining.
+func (api *EthereumAPI) Mining() bool {
+	return api.b.Mining()
+}
+
+// Hashrate returns the current hashrate for local CPU miner and remote miner.
+func (api *EthereumAPI) Hashrate() hexutil.Uint64 {
+	return hexutil.Uint64(api.b.Hashrate())
+}
+
 // TxPoolAPI offers and API for the transaction pool. It only operates on data that is non-confidential.
 type TxPoolAPI struct {
 	b Backend

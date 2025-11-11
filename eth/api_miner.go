@@ -56,3 +56,28 @@ func (api *MinerAPI) SetGasLimit(gasLimit hexutil.Uint64) bool {
 	api.e.Miner().SetGasCeil(uint64(gasLimit))
 	return true
 }
+
+// Start starts the miner with the given number of threads.
+// If threads is nil or 0, it defaults to 1 thread.
+func (api *MinerAPI) Start(threads *int) error {
+	t := 1
+	if threads != nil && *threads > 0 {
+		t = *threads
+	}
+	return api.e.Miner().Start(t)
+}
+
+// Stop stops the miner.
+func (api *MinerAPI) Stop() error {
+	return api.e.Miner().Stop()
+}
+
+// Mining returns whether the miner is currently mining.
+func (api *MinerAPI) Mining() bool {
+	return api.e.Miner().Mining()
+}
+
+// HashRate returns the current hash rate of the miner.
+func (api *MinerAPI) HashRate() uint64 {
+	return api.e.Miner().HashRate()
+}
