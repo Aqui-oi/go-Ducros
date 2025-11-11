@@ -446,15 +446,15 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 	}
 
 	log.Debug("Creating RandomX VM")
-	// Create VM with JIT and full memory
-	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES | C.RANDOMX_FLAG_FULL_MEM)
+	// Create VM with JIT and HARD_AES (no FULL_MEM to save memory)
+	// FULL_MEM requires 2GB per VM, which may not be available
+	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES)
 	vm := C.randomx_create_vm(flags, cache, nil)
 	if vm == nil {
 		log.Error("Failed to create RandomX VM!")
 		return
 	}
 	defer C.randomx_destroy_vm(vm)
-
 	log.Info("RandomX VM created successfully, starting nonce search...")
 
 	// Prepare the header for hashing (without nonce)
