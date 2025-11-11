@@ -17,6 +17,7 @@
 package randomx
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -291,10 +292,63 @@ func (randomx *RandomX) verifyHeader(chain consensus.ChainHeaderReader, header, 
 	if randomx.fakeFail != nil && *randomx.fakeFail == header.Number.Uint64() {
 		return errors.New("invalid tester pow")
 	}
+	// Verify the RandomX proof-of-work (skip in fake/test modes)
+	if !randomx.fakeFull && (randomx.config == nil || randomx.config.PowMode == ModeNormal) {
+		if err := randomx.verifyPoW(header); err != nil {
+			return err
+		}
+	}
 	// If all checks passed, validate any special fields for hard forks
 	if err := misc.VerifyDAOHeaderExtraData(chain.Config(), header); err != nil {
 		return err
 	}
+	return nil
+}
+
+// verifyPoW verifies the RandomX proof-of-work for a sealed header
+func (randomx *RandomX) verifyPoW(header *types.Header) error {
+	// Initialize RandomX cache with parent hash as key
+	if err := randomx.initCache(header.ParentHash); err != nil {
+		return fmt.Errorf("failed to initialize RandomX cache: %w", err)
+	}
+
+	// Get cache for verification
+	randomx.cacheMutex.RLock()
+	cache := randomx.cache
+	randomx.cacheMutex.RUnlock()
+
+	if cache == nil {
+		return errors.New("randomx cache not initialized")
+	}
+
+	// Create VM for verification (minimal flags for faster verification)
+	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES)
+	vm := C.randomx_create_vm(flags, cache, nil)
+	if vm == nil {
+		return errors.New("failed to create RandomX VM for verification")
+	}
+	defer C.randomx_destroy_vm(vm)
+
+	// Prepare hash input: seal hash (32 bytes) + nonce (8 bytes)
+	sealHash := randomx.SealHash(header)
+	nonce := header.Nonce.Uint64()
+	hashInput := make([]byte, 40)
+	copy(hashInput[:32], sealHash[:])
+	binary.LittleEndian.PutUint64(hashInput[32:], nonce)
+
+	// Calculate RandomX hash
+	hash := hashRandomX(vm, hashInput)
+
+	// Verify that the calculated hash matches the MixDigest
+	if hash != header.MixDigest {
+		return fmt.Errorf("invalid mix digest: have %x, want %x", header.MixDigest, hash)
+	}
+
+	// Verify that the hash satisfies the difficulty requirement
+	if !verifyRandomX(hash, header.Difficulty) {
+		return fmt.Errorf("invalid proof-of-work: hash %x does not satisfy difficulty %v", hash, header.Difficulty)
+	}
+
 	return nil
 }
 

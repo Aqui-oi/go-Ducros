@@ -62,7 +62,9 @@ extern void randomx_calculate_hash_next(randomx_vm *machine, const void *input, 
 */
 import "C"
 import (
+	"encoding/binary"
 	"errors"
+	"math/big"
 	"sync"
 	"time"
 	"unsafe"
@@ -297,6 +299,28 @@ func (randomx *RandomX) Close() error {
 	return nil
 }
 
+// hashRandomX calculates the RandomX hash for the given input
+func hashRandomX(vm *C.randomx_vm, input []byte) common.Hash {
+	var hash common.Hash
+	inputPtr := (*C.char)(unsafe.Pointer(&input[0]))
+	hashPtr := unsafe.Pointer(&hash[0])
+
+	C.randomx_calculate_hash(vm, unsafe.Pointer(inputPtr), C.size_t(len(input)), hashPtr)
+	return hash
+}
+
+// verifyRandomX checks whether the given hash and nonce satisfy the PoW difficulty
+func verifyRandomX(hash common.Hash, difficulty *big.Int) bool {
+	// The hash must be less than or equal to the target difficulty
+	// target = 2^256 / difficulty
+	target := new(big.Int).Div(maxUint256, difficulty)
+	hashInt := new(big.Int).SetBytes(hash[:])
+	return hashInt.Cmp(target) <= 0
+}
+
+// maxUint256 is the maximum value representable by a uint256
+var maxUint256 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 256), common.Big1)
+
 // Seal generates a new sealing request for the given input block and pushes
 // the result into the given channel.
 //
@@ -304,7 +328,7 @@ func (randomx *RandomX) Close() error {
 // than one result may also be returned depending on the consensus algorithm.
 func (randomx *RandomX) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
 	// If we're running a fake PoW, simply return a 0 nonce immediately
-	if randomx.fakeFull || randomx.config.PowMode == ModeFake {
+	if randomx.fakeFull || randomx.config != nil && randomx.config.PowMode == ModeFake {
 		header := block.Header()
 		header.Nonce = types.BlockNonce{}
 		header.MixDigest = common.Hash{}
@@ -320,15 +344,121 @@ func (randomx *RandomX) Seal(chain consensus.ChainHeaderReader, block *types.Blo
 		return errors.New("randomx: invalid proof-of-work")
 	}
 
+	// Get the hash of the header without nonce
+	header := block.Header()
+
+	// Initialize RandomX cache with block hash as key
+	parentHash := header.ParentHash
+	if err := randomx.initCache(parentHash); err != nil {
+		return err
+	}
+
 	// Create a runner and the multiple search threads it directs
 	abort := make(chan struct{})
+	found := make(chan *types.Block)
 
+	// Start mining goroutine
 	go func() {
-		// TODO: Implement actual mining logic here
-		// This is a placeholder that will be implemented in the seal method
-		<-stop
-		close(abort)
+		defer close(abort)
+		randomx.mine(block, found, abort, stop)
 	}()
 
+	// Wait for result or stop signal
+	select {
+	case result := <-found:
+		// Solution found, push to results
+		select {
+		case results <- result:
+		default:
+		}
+	case <-stop:
+		// Mining aborted externally
+		close(abort)
+	}
+
 	return nil
+}
+
+// mine is the actual mining loop that searches for a valid nonce
+func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abort <-chan struct{}, stop <-chan struct{}) {
+	header := block.Header()
+	target := new(big.Int).Div(maxUint256, header.Difficulty)
+
+	// Get RandomX VM from pool or create new one
+	randomx.cacheMutex.RLock()
+	cache := randomx.cache
+	randomx.cacheMutex.RUnlock()
+
+	if cache == nil {
+		return
+	}
+
+	// Create VM with JIT and full memory
+	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES | C.RANDOMX_FLAG_FULL_MEM)
+	vm := C.randomx_create_vm(flags, cache, nil)
+	if vm == nil {
+		return
+	}
+	defer C.randomx_destroy_vm(vm)
+
+	// Prepare the header for hashing (without nonce)
+	sealHash := randomx.SealHash(header)
+
+	// Start nonce search
+	var (
+		nonce     = uint64(time.Now().UnixNano())
+		attempts  = uint64(0)
+		hashInput = make([]byte, 40) // 32 bytes hash + 8 bytes nonce
+	)
+
+	copy(hashInput[:32], sealHash[:])
+
+	// Mining loop
+	for {
+		select {
+		case <-abort:
+			return
+		case <-stop:
+			return
+		default:
+			// Try current nonce
+			binary.LittleEndian.PutUint64(hashInput[32:], nonce)
+
+			// Calculate RandomX hash
+			hash := hashRandomX(vm, hashInput)
+
+			// Check if we found a valid solution
+			hashInt := new(big.Int).SetBytes(hash[:])
+			if hashInt.Cmp(target) <= 0 {
+				// Found valid nonce!
+				newHeader := types.CopyHeader(header)
+				newHeader.Nonce = types.EncodeNonce(nonce)
+				newHeader.MixDigest = hash
+
+				select {
+				case found <- block.WithSeal(newHeader):
+					return
+				case <-abort:
+					return
+				case <-stop:
+					return
+				}
+			}
+
+			// Increment nonce
+			nonce++
+			attempts++
+
+			// Check abort every 1024 attempts
+			if attempts%1024 == 0 {
+				select {
+				case <-abort:
+					return
+				case <-stop:
+					return
+				default:
+				}
+			}
+		}
+	}
 }
