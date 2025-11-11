@@ -18,7 +18,6 @@
 package ethconfig
 
 import (
-	"errors"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -26,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/randomx"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/history"
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
@@ -197,11 +197,8 @@ func CreateConsensusEngine(config *params.ChainConfig, db ethdb.Database) (conse
 	// RandomX PoW consensus (CPU-friendly mining)
 	if config.RandomX != nil {
 		log.Info("Using RandomX PoW consensus engine")
-		// For now, use a fake mode for testing. In production, use randomx.New(nil)
-		// TODO: Replace with real RandomX engine when C libraries are linked
-		// return randomx.New(nil), nil
-		// Using ethash faker as placeholder until RandomX C bindings are properly set up
-		return ethash.NewFaker(), nil
+		// Real RandomX engine with C bindings
+		return randomx.New(nil), nil
 	}
 
 	// Legacy PoS check (commented out to allow PoW chains)
