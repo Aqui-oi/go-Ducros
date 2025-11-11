@@ -490,6 +490,7 @@ type ChainConfig struct {
 	// Various consensus engines
 	Ethash             *EthashConfig       `json:"ethash,omitempty"`
 	Clique             *CliqueConfig       `json:"clique,omitempty"`
+	RandomX            *RandomXConfig      `json:"randomx,omitempty"`
 	BlobScheduleConfig *BlobScheduleConfig `json:"blobSchedule,omitempty"`
 }
 
@@ -499,6 +500,14 @@ type EthashConfig struct{}
 // String implements the stringer interface, returning the consensus engine details.
 func (c EthashConfig) String() string {
 	return "ethash"
+}
+
+// RandomXConfig is the consensus engine configs for RandomX proof-of-work based sealing.
+type RandomXConfig struct{}
+
+// String implements the stringer interface, returning the consensus engine details.
+func (c RandomXConfig) String() string {
+	return "randomx"
 }
 
 // CliqueConfig is the consensus engine configs for proof-of-authority based sealing.
