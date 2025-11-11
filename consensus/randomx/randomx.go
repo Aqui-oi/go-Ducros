@@ -62,6 +62,7 @@ extern void randomx_calculate_hash_next(randomx_vm *machine, const void *input, 
 */
 import "C"
 import (
+	"errors"
 	"sync"
 	"time"
 	"unsafe"
@@ -197,7 +198,7 @@ func (randomx *RandomX) initCache(key common.Hash) error {
 	// Allocate and initialize cache
 	randomx.cache = C.randomx_alloc_cache(flags)
 	if randomx.cache == nil {
-		return consensus.ErrInvalidPoW
+		return errors.New("randomx: failed to allocate cache")
 	}
 
 	keyPtr := (*C.char)(unsafe.Pointer(&key[0]))
@@ -316,7 +317,7 @@ func (randomx *RandomX) Seal(chain consensus.ChainHeaderReader, block *types.Blo
 
 	// If we're running a failed PoW, return error
 	if randomx.fakeFail != nil && *randomx.fakeFail == block.NumberU64() {
-		return consensus.ErrInvalidPoW
+		return errors.New("randomx: invalid proof-of-work")
 	}
 
 	// Create a runner and the multiple search threads it directs
