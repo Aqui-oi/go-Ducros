@@ -277,8 +277,8 @@ func (miner *Miner) mineLoop(stop <-chan struct{}) {
 				random:      common.Hash{},
 				withdrawals: nil,
 				beaconRoot:  nil,
-				noTxs:       false
-}, false)
+				noTxs:       false,
+			}, false)
 
 			if result.err != nil {
 				log.Error("Failed to generate work", "err", result.err)
