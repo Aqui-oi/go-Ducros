@@ -19,12 +19,11 @@ ExecStart=/home/ubuntu/go-Ducros/build/bin/geth \
   --ws.addr "0.0.0.0" \
   --ws.port 8546 \
   --ws.api "eth,net,web3,miner,admin" \
-  --mine \
-  --miner.threads 4 \
-  --miner.etherbase "0x0000000000000000000000000000000000000000" \
+  --miner.etherbase "0x797c03e9994d77e7d3f2a84ad33857dec585c3a7" \
   --verbosity 3 \
-  --maxpeers 50 \
-  --log.file /home/ubuntu/go-Ducros/logs/geth.log
+  --maxpeers 50
+ExecStartPost=/bin/sleep 5
+ExecStartPost=/home/ubuntu/go-Ducros/start-mining.sh 4
 
 Restart=always
 RestartSec=10

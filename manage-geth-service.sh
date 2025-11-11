@@ -46,6 +46,11 @@ install_service() {
     mkdir -p "${LOG_DIR}"
     chown ubuntu:ubuntu "${LOG_DIR}"
 
+    # Make start-mining.sh executable
+    chmod +x "${SCRIPT_DIR}/start-mining.sh"
+    chown ubuntu:ubuntu "${SCRIPT_DIR}/start-mining.sh"
+    print_info "Mining start script configured"
+
     # Copy service file
     cp "${SERVICE_FILE}" "${SYSTEM_SERVICE_PATH}"
     print_info "Service file copied to ${SYSTEM_SERVICE_PATH}"
@@ -181,33 +186,110 @@ set_coinbase() {
     print_info "Coinbase address updated. Service restarted."
 }
 
+# Set mining threads
+set_threads() {
+    if [ -z "$1" ]; then
+        print_error "Please provide number of threads"
+        echo "Usage: $0 set-threads <number>"
+        exit 1
+    fi
+
+    if ! [[ "$1" =~ ^[0-9]+$ ]]; then
+        print_error "Threads must be a number"
+        exit 1
+    fi
+
+    print_info "Setting mining threads to: $1"
+
+    # Update service file
+    sed -i "s|/start-mining.sh [0-9]*|/start-mining.sh $1|" "${SYSTEM_SERVICE_PATH}"
+
+    # Reload and restart
+    systemctl daemon-reload
+    systemctl restart "${SERVICE_NAME}"
+
+    print_info "Mining threads updated to $1. Service restarted."
+}
+
+# Start/stop mining without restarting service
+start_mining() {
+    THREADS=${1:-4}
+    print_info "Starting mining with $THREADS threads..."
+
+    RESULT=$(curl -s -X POST -H "Content-Type: application/json" \
+        --data "{\"jsonrpc\":\"2.0\",\"method\":\"miner_start\",\"params\":[$THREADS],\"id\":1}" \
+        http://localhost:8545)
+
+    if echo "$RESULT" | grep -q '"result":null'; then
+        print_info "Mining started successfully!"
+    else
+        print_error "Failed to start mining: $RESULT"
+        exit 1
+    fi
+}
+
+stop_mining() {
+    print_info "Stopping mining..."
+
+    RESULT=$(curl -s -X POST -H "Content-Type: application/json" \
+        --data '{"jsonrpc":"2.0","method":"miner_stop","params":[],"id":1}' \
+        http://localhost:8545)
+
+    if echo "$RESULT" | grep -q '"result":null'; then
+        print_info "Mining stopped successfully!"
+    else
+        print_error "Failed to stop mining: $RESULT"
+        exit 1
+    fi
+}
+
 # Show help
 show_help() {
     cat << EOF
 Geth RandomX Service Management Script
 
-Usage: sudo $0 [command]
+Usage: sudo $0 [command] [args]
 
-Commands:
+Service Management:
     install         Install and enable the systemd service
     uninstall       Stop and remove the systemd service
     start           Start the service
     stop            Stop the service
     restart         Restart the service
     status          Show service status
+
+Logging & Monitoring:
     logs            Show recent logs
     logs -f         Follow logs in real-time
     mining-info     Show mining information (hashrate, blocks, etc.)
-    set-coinbase    Set mining reward address
+
+Mining Control:
+    start-mining [threads]   Start mining (default: 4 threads)
+    stop-mining              Stop mining
+    set-threads <number>     Change mining threads (requires service restart)
+
+Configuration:
+    set-coinbase <address>   Set mining reward address
 
 Examples:
+    # Install and start
     sudo $0 install
     sudo $0 start
+
+    # Monitor
     sudo $0 logs -f
-    sudo $0 mining-info
+    $0 mining-info
+
+    # Control mining
+    $0 start-mining 8        # Start with 8 threads
+    $0 stop-mining
+
+    # Configure
     sudo $0 set-coinbase 0xYourEthereumAddress
+    sudo $0 set-threads 8
 
 Note: Most commands require sudo/root privileges.
+      Mining control commands (start-mining, stop-mining) don't require sudo.
 EOF
 }
 
@@ -242,9 +324,19 @@ case "${1:-}" in
     mining-info)
         mining_info
         ;;
+    start-mining)
+        start_mining "$2"
+        ;;
+    stop-mining)
+        stop_mining
+        ;;
     set-coinbase)
         check_root
         set_coinbase "$2"
+        ;;
+    set-threads)
+        check_root
+        set_threads "$2"
         ;;
     help|--help|-h)
         show_help

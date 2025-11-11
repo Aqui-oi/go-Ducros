@@ -5,21 +5,24 @@ This guide explains how to run your Geth RandomX node as a systemd service that 
 ## Quick Start
 
 ```bash
-# 1. Make the management script executable
+# 1. Pull the latest changes
+git pull origin claude/geth-randomx-pow-fork-011CV1zCZx1k45jWEf7eXxMT
+
+# 2. Make the management script executable
 chmod +x manage-geth-service.sh
 
-# 2. Set your mining address (IMPORTANT: replace with your actual address!)
+# 3. Set your mining address (IMPORTANT: replace with your actual address!)
 sudo nano geth-randomx.service
 # Edit the line: --miner.etherbase "0xYourEthereumAddressHere"
 
-# 3. Install and start the service
+# 4. Install and start the service
 sudo ./manage-geth-service.sh install
 sudo ./manage-geth-service.sh start
 
-# 4. Check if it's running
+# 5. Check if it's running
 sudo ./manage-geth-service.sh status
 
-# 5. Watch the logs
+# 6. Watch the logs (mining will start automatically after 5 seconds)
 sudo ./manage-geth-service.sh logs -f
 ```
 
@@ -58,10 +61,25 @@ sudo ./manage-geth-service.sh logs -f
 ./manage-geth-service.sh mining-info
 ```
 
+### Mining Control
+```bash
+# Start mining with 4 threads (default)
+./manage-geth-service.sh start-mining
+
+# Start mining with 8 threads
+./manage-geth-service.sh start-mining 8
+
+# Stop mining (node keeps running)
+./manage-geth-service.sh stop-mining
+```
+
 ### Configuration
 ```bash
-# Change mining reward address
+# Change mining reward address (requires service restart)
 sudo ./manage-geth-service.sh set-coinbase 0xYourNewAddress
+
+# Change mining threads (requires service restart)
+sudo ./manage-geth-service.sh set-threads 8
 ```
 
 ## Service Configuration
@@ -72,9 +90,9 @@ The service file is located at: `geth-randomx.service`
 
 ```ini
 # Mining settings
---mine                    # Enable mining
---miner.threads 4         # Use 4 CPU threads for mining
 --miner.etherbase "0x..." # Address to receive mining rewards
+# Mining starts automatically via start-mining.sh script after 5 seconds
+# Default: 4 threads (configurable in ExecStartPost line)
 
 # Network settings
 --networkid 33669         # Custom network ID
@@ -91,24 +109,39 @@ The service file is located at: `geth-randomx.service`
 --ws.port 8546            # WS-RPC port
 ```
 
+**Note on Mining**: Mining starts automatically 5 seconds after Geth starts, using the `start-mining.sh` script. This is configured in the service file's `ExecStartPost` directive.
+
 ### Adjusting Mining Threads
 
-To change the number of mining threads:
+#### Option 1: Using the management script (recommended)
+```bash
+sudo ./manage-geth-service.sh set-threads 8
+```
 
+#### Option 2: Manual configuration
 1. Edit the service file:
 ```bash
 sudo nano /etc/systemd/system/geth-randomx.service
 ```
 
-2. Modify the `--miner.threads` value:
+2. Modify the `ExecStartPost` line:
 ```ini
---miner.threads 8  # Use 8 threads instead of 4
+ExecStartPost=/home/ubuntu/go-Ducros/start-mining.sh 8  # Use 8 threads instead of 4
 ```
 
 3. Reload and restart:
 ```bash
 sudo systemctl daemon-reload
 sudo ./manage-geth-service.sh restart
+```
+
+#### Option 3: Control mining without restarting
+```bash
+# Stop current mining
+./manage-geth-service.sh stop-mining
+
+# Start with different thread count
+./manage-geth-service.sh start-mining 8
 ```
 
 ## Monitoring Mining Activity
