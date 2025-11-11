@@ -191,12 +191,8 @@ func (randomx *RandomX) initCache(key common.Hash) error {
 	}
 
 	// Get recommended flags for RandomX
-	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT)
-	if randomx.config != nil && randomx.config.PowMode == ModeNormal {
-		flags |= C.RANDOMX_FLAG_JIT
-		flags |= C.RANDOMX_FLAG_HARD_AES
-		flags |= C.RANDOMX_FLAG_FULL_MEM
-	}
+	// JIT disabled to avoid segfaults on systems with security restrictions
+	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_HARD_AES)
 
 	// Allocate and initialize cache
 	randomx.cache = C.randomx_alloc_cache(flags)
@@ -329,8 +325,8 @@ func verifyPoWWithCache(cache *C.randomx_cache, sealHash common.Hash, header *ty
 		return errors.New("randomx cache not initialized")
 	}
 
-	// Create VM for verification (minimal flags for faster verification)
-	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES)
+	// Create VM for verification (JIT disabled to avoid segfaults)
+	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_HARD_AES)
 	vm := C.randomx_create_vm(flags, cache, nil)
 	if vm == nil {
 		return errors.New("failed to create RandomX VM for verification")
