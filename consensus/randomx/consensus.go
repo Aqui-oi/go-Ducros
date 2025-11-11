@@ -17,7 +17,6 @@
 package randomx
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -317,36 +316,12 @@ func (randomx *RandomX) verifyPoW(header *types.Header) error {
 	cache := randomx.cache
 	randomx.cacheMutex.RUnlock()
 
-	if cache == nil {
-		return errors.New("randomx cache not initialized")
-	}
-
-	// Create VM for verification (minimal flags for faster verification)
-	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES)
-	vm := C.randomx_create_vm(flags, cache, nil)
-	if vm == nil {
-		return errors.New("failed to create RandomX VM for verification")
-	}
-	defer C.randomx_destroy_vm(vm)
-
-	// Prepare hash input: seal hash (32 bytes) + nonce (8 bytes)
+	// Get seal hash
 	sealHash := randomx.SealHash(header)
-	nonce := header.Nonce.Uint64()
-	hashInput := make([]byte, 40)
-	copy(hashInput[:32], sealHash[:])
-	binary.LittleEndian.PutUint64(hashInput[32:], nonce)
 
-	// Calculate RandomX hash
-	hash := hashRandomX(vm, hashInput)
-
-	// Verify that the calculated hash matches the MixDigest
-	if hash != header.MixDigest {
-		return fmt.Errorf("invalid mix digest: have %x, want %x", header.MixDigest, hash)
-	}
-
-	// Verify that the hash satisfies the difficulty requirement
-	if !verifyRandomX(hash, header.Difficulty) {
-		return fmt.Errorf("invalid proof-of-work: hash %x does not satisfy difficulty %v", hash, header.Difficulty)
+	// Verify PoW using the cache (all C operations are in randomx.go)
+	if err := verifyPoWWithCache(cache, sealHash, header); err != nil {
+		return fmt.Errorf("proof-of-work verification failed: %w", err)
 	}
 
 	return nil

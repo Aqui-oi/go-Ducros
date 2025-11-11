@@ -321,6 +321,43 @@ func verifyRandomX(hash common.Hash, difficulty *big.Int) bool {
 // maxUint256 is the maximum value representable by a uint256
 var maxUint256 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 256), common.Big1)
 
+// verifyPoWWithCache verifies the proof-of-work using the provided cache
+// This function handles all C-related operations and is called from consensus.go
+func verifyPoWWithCache(cache *C.randomx_cache, sealHash common.Hash, header *types.Header) error {
+	if cache == nil {
+		return errors.New("randomx cache not initialized")
+	}
+
+	// Create VM for verification (minimal flags for faster verification)
+	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES)
+	vm := C.randomx_create_vm(flags, cache, nil)
+	if vm == nil {
+		return errors.New("failed to create RandomX VM for verification")
+	}
+	defer C.randomx_destroy_vm(vm)
+
+	// Prepare hash input: seal hash (32 bytes) + nonce (8 bytes)
+	nonce := header.Nonce.Uint64()
+	hashInput := make([]byte, 40)
+	copy(hashInput[:32], sealHash[:])
+	binary.LittleEndian.PutUint64(hashInput[32:], nonce)
+
+	// Calculate RandomX hash
+	hash := hashRandomX(vm, hashInput)
+
+	// Verify that the calculated hash matches the MixDigest
+	if hash != header.MixDigest {
+		return errors.New("invalid mix digest")
+	}
+
+	// Verify that the hash satisfies the difficulty requirement
+	if !verifyRandomX(hash, header.Difficulty) {
+		return errors.New("invalid proof-of-work")
+	}
+
+	return nil
+}
+
 // Seal generates a new sealing request for the given input block and pushes
 // the result into the given channel.
 //
