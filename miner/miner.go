@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -233,22 +234,28 @@ func (miner *Miner) HashRate() uint64 {
 
 // mineLoop is the main mining loop that continuously tries to mine blocks.
 func (miner *Miner) mineLoop(stop <-chan struct{}) {
+	log.Info("Mining loop started")
 	for {
 		select {
 		case <-stop:
+			log.Info("Mining loop stopped")
 			return
 		default:
 			// Get the current head block
 			header := miner.chain.CurrentBlock()
 			if header == nil {
+				log.Warn("Current block header is nil, waiting...")
 				time.Sleep(time.Second)
 				continue
 			}
+
+			log.Info("Mining new block", "parent", header.Number.Uint64(), "difficulty", header.Difficulty)
 
 			// Create a new block to mine
 			timestamp := uint64(time.Now().Unix())
 			parent := miner.chain.GetBlock(header.Hash(), header.Number.Uint64())
 			if parent == nil {
+				log.Warn("Parent block is nil, waiting...")
 				time.Sleep(time.Second)
 				continue
 			}
@@ -259,11 +266,7 @@ func (miner *Miner) mineLoop(stop <-chan struct{}) {
 				coinbase = miner.config.Etherbase
 			}
 
-			block := miner.chain.GetBlock(parent.Hash(), parent.NumberU64())
-			if block == nil {
-				time.Sleep(time.Second)
-				continue
-			}
+			log.Debug("Generating work", "coinbase", coinbase, "timestamp", timestamp)
 
 			// Generate work
 			result := miner.generateWork(&generateParams{
@@ -274,17 +277,21 @@ func (miner *Miner) mineLoop(stop <-chan struct{}) {
 				random:      common.Hash{},
 				withdrawals: nil,
 				beaconRoot:  nil,
-				noTxs:       false,
-			}, false)
+				noTxs:       false
+}, false)
 
 			if result.err != nil {
+				log.Error("Failed to generate work", "err", result.err)
 				time.Sleep(time.Second)
 				continue
 			}
 
+			log.Info("Starting to seal block", "number", result.block.NumberU64(), "difficulty", result.block.Difficulty())
+
 			// Try to seal the block using the consensus engine
 			resultCh := make(chan *types.Block, 1)
 			if err := miner.engine.Seal(miner.chain, result.block, resultCh, stop); err != nil {
+				log.Error("Seal failed", "err", err)
 				time.Sleep(time.Second)
 				continue
 			}
@@ -293,17 +300,23 @@ func (miner *Miner) mineLoop(stop <-chan struct{}) {
 			select {
 			case block := <-resultCh:
 				if block != nil {
+					log.Info("Block sealed successfully!", "number", block.NumberU64(), "hash", block.Hash().Hex())
 					// Insert the sealed block into the blockchain
 					_, err := miner.chain.InsertChain([]*types.Block{block})
 					if err != nil {
+						log.Error("Failed to insert block", "err", err)
 						// Block insertion failed, continue mining
 						continue
 					}
-					// Successfully mined a block!
+					log.Info("🎉 Successfully mined block!", "number", block.NumberU64(), "hash", block.Hash().Hex())
+				} else {
+					log.Warn("Received nil block from seal")
 				}
 			case <-stop:
+				log.Info("Mining stopped during sealing")
 				return
 			case <-time.After(30 * time.Second):
+				log.Warn("Sealing timeout after 30 seconds")
 				// Timeout, try again
 				continue
 			}

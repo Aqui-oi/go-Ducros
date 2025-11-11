@@ -364,8 +364,11 @@ func verifyPoWWithCache(cache *C.randomx_cache, sealHash common.Hash, header *ty
 // Note, the method returns immediately and will send the result async. More
 // than one result may also be returned depending on the consensus algorithm.
 func (randomx *RandomX) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
+	log.Info("RandomX Seal called", "block", block.NumberU64(), "difficulty", block.Difficulty())
+
 	// If we're running a fake PoW, simply return a 0 nonce immediately
 	if randomx.fakeFull || randomx.config != nil && randomx.config.PowMode == ModeFake {
+		log.Debug("Using fake PoW mode")
 		header := block.Header()
 		header.Nonce = types.BlockNonce{}
 		header.MixDigest = common.Hash{}
@@ -386,7 +389,9 @@ func (randomx *RandomX) Seal(chain consensus.ChainHeaderReader, block *types.Blo
 
 	// Initialize RandomX cache with block hash as key
 	parentHash := header.ParentHash
+	log.Debug("Initializing RandomX cache", "parentHash", parentHash.Hex())
 	if err := randomx.initCache(parentHash); err != nil {
+		log.Error("Failed to initialize RandomX cache", "err", err)
 		return err
 	}
 
@@ -395,6 +400,7 @@ func (randomx *RandomX) Seal(chain consensus.ChainHeaderReader, block *types.Blo
 	found := make(chan *types.Block)
 
 	// Start mining goroutine
+	log.Info("Starting RandomX mining goroutine")
 	go func() {
 		defer close(abort)
 		randomx.mine(block, found, abort, stop)
@@ -403,16 +409,21 @@ func (randomx *RandomX) Seal(chain consensus.ChainHeaderReader, block *types.Blo
 	// Wait for result or stop signal
 	select {
 	case result := <-found:
+		log.Info("Solution found!", "block", result.NumberU64())
 		// Solution found, push to results
 		select {
 		case results <- result:
+			log.Debug("Result sent to results channel")
 		default:
+			log.Warn("Results channel full, dropping result")
 		}
 	case <-stop:
+		log.Info("Mining aborted via stop channel")
 		// Mining aborted externally
 		close(abort)
 	}
 
+	log.Debug("Seal function returning")
 	return nil
 }
 
@@ -421,22 +432,29 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 	header := block.Header()
 	target := new(big.Int).Div(maxUint256, header.Difficulty)
 
+	log.Info("RandomX mine starting", "block", block.NumberU64(), "difficulty", header.Difficulty, "target", target.String())
+
 	// Get RandomX VM from pool or create new one
 	randomx.cacheMutex.RLock()
 	cache := randomx.cache
 	randomx.cacheMutex.RUnlock()
 
 	if cache == nil {
+		log.Error("RandomX cache is nil!")
 		return
 	}
 
+	log.Debug("Creating RandomX VM")
 	// Create VM with JIT and full memory
 	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES | C.RANDOMX_FLAG_FULL_MEM)
 	vm := C.randomx_create_vm(flags, cache, nil)
 	if vm == nil {
+		log.Error("Failed to create RandomX VM!")
 		return
 	}
 	defer C.randomx_destroy_vm(vm)
+
+	log.Info("RandomX VM created successfully, starting nonce search...")
 
 	// Prepare the header for hashing (without nonce)
 	sealHash := randomx.SealHash(header)
@@ -454,8 +472,10 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 	for {
 		select {
 		case <-abort:
+			log.Debug("Mining aborted", "attempts", attempts)
 			return
 		case <-stop:
+			log.Debug("Mining stopped", "attempts", attempts)
 			return
 		default:
 			// Try current nonce
@@ -468,16 +488,20 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 			hashInt := new(big.Int).SetBytes(hash[:])
 			if hashInt.Cmp(target) <= 0 {
 				// Found valid nonce!
+				log.Info("✅ Found valid nonce!", "block", block.NumberU64(), "nonce", nonce, "attempts", attempts, "hash", common.BytesToHash(hash[:]).Hex())
 				newHeader := types.CopyHeader(header)
 				newHeader.Nonce = types.EncodeNonce(nonce)
 				newHeader.MixDigest = hash
 
 				select {
 				case found <- block.WithSeal(newHeader):
+					log.Debug("Sealed block sent to found channel")
 					return
 				case <-abort:
+					log.Warn("Aborted while trying to send found block")
 					return
 				case <-stop:
+					log.Warn("Stopped while trying to send found block")
 					return
 				}
 			}
@@ -485,6 +509,11 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 			// Increment nonce
 			nonce++
 			attempts++
+
+			// Log progress every 100000 attempts
+			if attempts%100000 == 0 {
+				log.Debug("Mining progress", "attempts", attempts, "nonce", nonce)
+			}
 
 			// Check abort every 1024 attempts
 			if attempts%1024 == 0 {
