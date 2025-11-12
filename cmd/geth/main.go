@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/console/prompt"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/debug"
@@ -345,6 +346,26 @@ func startNode(ctx *cli.Context, stack *node.Node, isConsole bool) {
 
 	if ctx.IsSet(utils.UnlockedAccountFlag.Name) {
 		log.Warn(`The "unlock" flag has been deprecated and has no effect`)
+	}
+
+	// Start mining if --mine flag is set
+	if ctx.Bool(utils.MiningEnabledFlag.Name) {
+		// Get the Ethereum backend
+		var ethereum *eth.Ethereum
+		if err := stack.Lifecycle(&ethereum); err != nil {
+			log.Error("Failed to get Ethereum backend", "err", err)
+		} else if ethereum != nil {
+			// Check if we have an etherbase address configured
+			eb := ethereum.Miner().Coinbase()
+			if eb == (common.Address{}) {
+				log.Error("Cannot start mining without etherbase address")
+				log.Error("Set the etherbase with --miner.etherbase <address>")
+			} else {
+				log.Info("Starting mining operation", "etherbase", eb)
+				// Start the mining operation
+				ethereum.Miner().Start()
+			}
+		}
 	}
 
 	// Register wallet event handlers to open and auto-derive wallets
