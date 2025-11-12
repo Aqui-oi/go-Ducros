@@ -17,9 +17,6 @@
 package main
 
 import (
-	"runtime"
-
-
 	"bufio"
 	"errors"
 	"fmt"
@@ -40,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/internal/flags"
@@ -336,18 +334,16 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 			log.Error("Cannot start mining without etherbase address")
 			log.Error("Set the etherbase with --miner.etherbase <address>")
 		} else {
-			// Get number of mining threads from config
+			// Use all available CPUs for mining by default
+			// This can be controlled by GOMAXPROCS environment variable
 			threads := runtime.NumCPU()
-			if ctx.IsSet(utils.MinerThreadsFlag.Name) {
-				threads = ctx.Int(utils.MinerThreadsFlag.Name)
-			}
 			if threads <= 0 {
 				threads = 1
 			}
 
 			log.Info("Mining will start after node initialization", "etherbase", etherbase, "threads", threads)
 
-			// Register a goroutine to start mining after the node starts
+			// Register a lifecycle hook to start mining after the node starts
 			stack.RegisterLifecycle(&miningStarter{
 				eth:     eth,
 				threads: threads,
