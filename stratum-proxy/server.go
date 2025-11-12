@@ -159,6 +159,11 @@ func (s *Server) handleMiner(conn net.Conn) {
 		responseJSON, _ := json.Marshal(response)
 		responseJSON = append(responseJSON, '\n')
 
+		// Debug: log the response we're sending
+		if s.config.Verbose {
+			log.Printf("📤 [%s] Response: %s", minerID, string(responseJSON))
+		}
+
 		if _, err := writer.Write(responseJSON); err != nil {
 			log.Printf("Write error to %s: %v", minerID, err)
 			return
