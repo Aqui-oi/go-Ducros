@@ -361,8 +361,9 @@ func (s *Server) handleSubmit(miner *Miner, req *StratumRequest) *StratumRespons
 	// Extract nonce from result (if blob format)
 	var nonce string
 	if len(nonceStr) == 8 {
-		// nonce provided separately (8 hex chars)
-		nonce = "0x" + nonceStr
+		// nonce provided separately (8 hex chars = 4 bytes Monero format)
+		// Ethereum expects 8 bytes (16 hex chars), so pad with 4 zero bytes
+		nonce = "0x" + nonceStr + "00000000"
 	} else {
 		// Extract from blob
 		var err error
