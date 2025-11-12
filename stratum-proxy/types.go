@@ -39,7 +39,7 @@ type StratumResponse struct {
 	ID      interface{} `json:"id"`
 	JSONRPC string      `json:"jsonrpc"`
 	Result  interface{} `json:"result,omitempty"`
-	Error   interface{} `json:"error,omitempty"`
+	Error   interface{} `json:"error"` // Must always be present (null for success)
 }
 
 // StratumError represents a Stratum error
@@ -53,12 +53,19 @@ type Job struct {
 	JobID       string    `json:"job_id"`
 	Blob        string    `json:"blob"`          // Block template (hex)
 	Target      string    `json:"target"`        // Difficulty target (hex)
-	Algo        string    `json:"algo"`          // "rx/0" for RandomX
-	Height      uint64    `json:"height"`        // Block number
-	SeedHash    string    `json:"seed_hash"`     // RandomX seed (epoch)
+	Algo        string    `json:"algo,omitempty"`          // "rx/0" for RandomX (optional)
+	Height      uint64    `json:"height,omitempty"`        // Block number (optional)
+	SeedHash    string    `json:"seed_hash,omitempty"`     // RandomX seed (optional)
 	HeaderHash  string    `json:"-"`             // Internal: header hash for verification
 	Difficulty  uint64    `json:"-"`             // Internal: actual difficulty
 	CreatedAt   time.Time `json:"-"`             // Internal: job creation time
+}
+
+// JobResponse is the minimal job format for login response (xmrig compatible)
+type JobResponse struct {
+	JobID  string `json:"job_id"`
+	Blob   string `json:"blob"`
+	Target string `json:"target"`
 }
 
 // Miner represents a connected miner

@@ -190,6 +190,7 @@ func (s *Server) handleRequest(miner *Miner, req *StratumRequest) *StratumRespon
 			ID:      req.ID,
 			JSONRPC: "2.0",
 			Result:  map[string]interface{}{"status": "KEEPALIVED"},
+			Error:   nil,
 		}
 	default:
 		log.Printf("⚠️  Unknown method from %s: %s", miner.ID, req.Method)
@@ -272,9 +273,16 @@ func (s *Server) handleLogin(miner *Miner, req *StratumRequest) *StratumResponse
 	// Send job to miner
 	miner.CurrentJob = job
 
+	// Create minimal job response for xmrig compatibility
+	jobResponse := JobResponse{
+		JobID:  job.JobID,
+		Blob:   job.Blob,
+		Target: job.Target,
+	}
+
 	result := map[string]interface{}{
 		"id":     miner.ID,
-		"job":    job,
+		"job":    jobResponse,
 		"status": "OK",
 	}
 
@@ -282,6 +290,7 @@ func (s *Server) handleLogin(miner *Miner, req *StratumRequest) *StratumResponse
 		ID:      req.ID,
 		JSONRPC: "2.0",
 		Result:  result,
+		Error:   nil, // Must be present for xmrig (null = success)
 	}
 }
 
@@ -405,6 +414,7 @@ func (s *Server) handleSubmit(miner *Miner, req *StratumRequest) *StratumRespons
 			ID:      req.ID,
 			JSONRPC: "2.0",
 			Result:  map[string]interface{}{"status": "OK"},
+			Error:   nil,
 		}
 	} else {
 		log.Printf("❌ Invalid share from %s", miner.ID)
