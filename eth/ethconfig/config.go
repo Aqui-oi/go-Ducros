@@ -194,6 +194,8 @@ type Config struct {
 // CreateConsensusEngine creates a consensus engine for the given chain config.
 // Supports RandomX (PoW), Clique (PoA), and Beacon (PoS) consensus engines.
 func CreateConsensusEngine(config *params.ChainConfig, db ethdb.Database) (consensus.Engine, error) {
+	log.Info("Creating consensus engine", "randomx", config.RandomX != nil, "clique", config.Clique != nil, "ethash", config.Ethash != nil, "ttd", config.TerminalTotalDifficulty != nil)
+
 	// RandomX PoW consensus (CPU-friendly mining)
 	if config.RandomX != nil {
 		log.Info("Using RandomX PoW consensus engine")
@@ -211,6 +213,7 @@ func CreateConsensusEngine(config *params.ChainConfig, db ethdb.Database) (conse
 
 	// Wrap previously supported consensus engines into their post-merge counterpart
 	if config.Clique != nil {
+		log.Info("Using Clique PoA consensus engine")
 		// Clique PoA - can run standalone or wrapped in Beacon
 		if config.TerminalTotalDifficulty != nil {
 			return beacon.New(clique.New(config.Clique, db)), nil
@@ -229,6 +232,7 @@ func CreateConsensusEngine(config *params.ChainConfig, db ethdb.Database) (conse
 
 	// Default: Beacon PoS (if TerminalTotalDifficulty is set)
 	if config.TerminalTotalDifficulty != nil {
+		log.Info("Using Beacon PoS consensus engine (default)")
 		return beacon.New(ethash.NewFaker()), nil
 	}
 
