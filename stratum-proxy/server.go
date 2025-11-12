@@ -182,13 +182,15 @@ func (s *Server) handleRequest(miner *Miner, req *StratumRequest) *StratumRespon
 		return s.handleSubmit(miner, req)
 	case "keepalived":
 		return &StratumResponse{
-			ID:     req.ID,
-			Result: map[string]interface{}{"status": "KEEPALIVED"},
+			ID:      req.ID,
+			JSONRPC: "2.0",
+			Result:  map[string]interface{}{"status": "KEEPALIVED"},
 		}
 	default:
 		log.Printf("⚠️  Unknown method from %s: %s", miner.ID, req.Method)
 		return &StratumResponse{
-			ID: req.ID,
+			ID:      req.ID,
+			JSONRPC: "2.0",
 			Error: &StratumError{
 				Code:    -1,
 				Message: fmt.Sprintf("Unknown method: %s", req.Method),
@@ -211,7 +213,8 @@ func (s *Server) handleLogin(miner *Miner, req *StratumRequest) *StratumResponse
 		paramsArray, err := req.GetParamsArray()
 		if err != nil || len(paramsArray) < 1 {
 			return &StratumResponse{
-				ID: req.ID,
+				ID:      req.ID,
+				JSONRPC: "2.0",
 				Error: &StratumError{
 					Code:    -1,
 					Message: "Missing login parameters",
@@ -252,7 +255,8 @@ func (s *Server) handleLogin(miner *Miner, req *StratumRequest) *StratumResponse
 
 	if job == nil {
 		return &StratumResponse{
-			ID: req.ID,
+			ID:      req.ID,
+			JSONRPC: "2.0",
 			Error: &StratumError{
 				Code:    -1,
 				Message: "No work available",
@@ -270,8 +274,9 @@ func (s *Server) handleLogin(miner *Miner, req *StratumRequest) *StratumResponse
 	}
 
 	return &StratumResponse{
-		ID:     req.ID,
-		Result: result,
+		ID:      req.ID,
+		JSONRPC: "2.0",
+		Result:  result,
 	}
 }
 
@@ -285,7 +290,8 @@ func (s *Server) handleSubmit(miner *Miner, req *StratumRequest) *StratumRespons
 		paramsArray, err := req.GetParamsArray()
 		if err != nil || len(paramsArray) < 1 {
 			return &StratumResponse{
-				ID: req.ID,
+				ID:      req.ID,
+				JSONRPC: "2.0",
 				Error: &StratumError{
 					Code:    -1,
 					Message: "Missing submit parameters",
@@ -298,7 +304,8 @@ func (s *Server) handleSubmit(miner *Miner, req *StratumRequest) *StratumRespons
 			submitData = obj
 		} else {
 			return &StratumResponse{
-				ID: req.ID,
+				ID:      req.ID,
+				JSONRPC: "2.0",
 				Error: &StratumError{
 					Code:    -1,
 					Message: "Invalid submit format",
@@ -322,7 +329,8 @@ func (s *Server) handleSubmit(miner *Miner, req *StratumRequest) *StratumRespons
 		miner.SharesInvalid++
 		s.stats.RecordShare(false)
 		return &StratumResponse{
-			ID: req.ID,
+			ID:      req.ID,
+			JSONRPC: "2.0",
 			Error: &StratumError{
 				Code:    -1,
 				Message: "Stale share",
@@ -344,7 +352,8 @@ func (s *Server) handleSubmit(miner *Miner, req *StratumRequest) *StratumRespons
 			miner.SharesInvalid++
 			s.stats.RecordShare(false)
 			return &StratumResponse{
-				ID: req.ID,
+				ID:      req.ID,
+				JSONRPC: "2.0",
 				Error: &StratumError{
 					Code:    -1,
 					Message: "Invalid nonce",
@@ -365,7 +374,8 @@ func (s *Server) handleSubmit(miner *Miner, req *StratumRequest) *StratumRespons
 		miner.SharesInvalid++
 		s.stats.RecordShare(false)
 		return &StratumResponse{
-			ID: req.ID,
+			ID:      req.ID,
+			JSONRPC: "2.0",
 			Error: &StratumError{
 				Code:    -1,
 				Message: fmt.Sprintf("Submit failed: %v", err),
@@ -387,15 +397,17 @@ func (s *Server) handleSubmit(miner *Miner, req *StratumRequest) *StratumRespons
 		}
 
 		return &StratumResponse{
-			ID:     req.ID,
-			Result: map[string]interface{}{"status": "OK"},
+			ID:      req.ID,
+			JSONRPC: "2.0",
+			Result:  map[string]interface{}{"status": "OK"},
 		}
 	} else {
 		log.Printf("❌ Invalid share from %s", miner.ID)
 		miner.SharesInvalid++
 		s.stats.RecordShare(false)
 		return &StratumResponse{
-			ID: req.ID,
+			ID:      req.ID,
+			JSONRPC: "2.0",
 			Error: &StratumError{
 				Code:    -1,
 				Message: "Invalid share",

@@ -36,9 +36,10 @@ func (r *StratumRequest) GetParamsObject() (map[string]interface{}, error) {
 
 // StratumResponse represents a Stratum JSON-RPC response
 type StratumResponse struct {
-	ID     interface{} `json:"id"`
-	Result interface{} `json:"result"`
-	Error  interface{} `json:"error"`
+	ID      interface{} `json:"id"`
+	JSONRPC string      `json:"jsonrpc"`
+	Result  interface{} `json:"result,omitempty"`
+	Error   interface{} `json:"error,omitempty"`
 }
 
 // StratumError represents a Stratum error
