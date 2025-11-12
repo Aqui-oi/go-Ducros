@@ -21,7 +21,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
@@ -128,7 +130,7 @@ func (api *API) GetHashrate() uint64 {
 func (randomx *RandomX) Hashrate() float64 {
 	// Short circuit if we are run the randomx in normal/test mode.
 	if randomx.remote == nil {
-		return randomx.hashrate.Rate1()
+		return randomx.hashrate.Snapshot().Rate1()
 	}
 	var res = make(chan uint64, 1)
 
@@ -136,11 +138,11 @@ func (randomx *RandomX) Hashrate() float64 {
 	case randomx.remote.fetchRateCh <- res:
 	case <-randomx.remote.exitCh:
 		// Return local hashrate only if randomx is stopped.
-		return randomx.hashrate.Rate1()
+		return randomx.hashrate.Snapshot().Rate1()
 	}
 
 	// Gather total submitted hash rate of remote sealers.
-	return randomx.hashrate.Rate1() + float64(<-res)
+	return randomx.hashrate.Snapshot().Rate1() + float64(<-res)
 }
 
 // APIs returns the RPC APIs this consensus engine provides.

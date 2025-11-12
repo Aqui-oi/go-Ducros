@@ -64,9 +64,7 @@ import "C"
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math/big"
-	"math/rand"
 	"sync"
 	"time"
 	"unsafe"
@@ -168,6 +166,7 @@ type sealTask struct {
 // remoteSealer wraps the actual sealing work and listens for work requests and
 // returns work solutions.
 type remoteSealer struct {
+	randomx      *RandomX
 	works        map[common.Hash]*types.Block
 	rates        map[common.Hash]hashrate
 	currentBlock *types.Block
@@ -197,9 +196,9 @@ func New(config *Config) *RandomX {
 
 	randomx := &RandomX{
 		config:   config,
-		remote:   startRemoteSealer(new(RandomX)),
-		hashrate: metrics.NewMeterForced(),
+		hashrate: *metrics.NewMeter(),
 	}
+	randomx.remote = startRemoteSealer(randomx)
 
 	return randomx
 }
@@ -207,6 +206,7 @@ func New(config *Config) *RandomX {
 // startRemoteSealer starts the remote sealer goroutine.
 func startRemoteSealer(randomx *RandomX) *remoteSealer {
 	sealer := &remoteSealer{
+		randomx:      randomx,
 		works:        make(map[common.Hash]*types.Block),
 		rates:        make(map[common.Hash]hashrate),
 		fetchWorkCh:  make(chan *sealWork),
@@ -756,7 +756,7 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 
 // makeWork creates a work package for the given block.
 func (s *remoteSealer) makeWork(block *types.Block) [4]string {
-	hash := block.HashNoNonce()
+	hash := s.randomx.SealHash(block.Header())
 
 	return [4]string{
 		hash.Hex(),                                 // Header hash (SealHash)
