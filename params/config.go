@@ -503,7 +503,13 @@ func (c EthashConfig) String() string {
 }
 
 // RandomXConfig is the consensus engine configs for RandomX proof-of-work based sealing.
-type RandomXConfig struct{}
+type RandomXConfig struct {
+	// LWMAActivationBlock is the block number at which LWMA difficulty algorithm activates
+	// If nil, LWMA is used immediately for all blocks
+	// LWMA (Linearly Weighted Moving Average) is better suited for CPU mining
+	// than Ethereum's original difficulty algorithm
+	LWMAActivationBlock *big.Int `json:"lwmaActivationBlock,omitempty"`
+}
 
 // String implements the stringer interface, returning the consensus engine details.
 func (c RandomXConfig) String() string {
