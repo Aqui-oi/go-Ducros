@@ -64,6 +64,7 @@ import "C"
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 	"time"
@@ -447,6 +448,7 @@ var maxUint256 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 256), common.Big
 
 // verifyPoWWithCache verifies the proof-of-work using the provided cache
 // This function handles all C-related operations and is called from consensus.go
+// Implements rx-eth-v1 format for compatibility with xmrig RandomX mining
 func verifyPoWWithCache(cache *C.randomx_cache, sealHash common.Hash, header *types.Header) error {
 	if cache == nil {
 		return errors.New("randomx cache not initialized")
@@ -460,23 +462,59 @@ func verifyPoWWithCache(cache *C.randomx_cache, sealHash common.Hash, header *ty
 	}
 	defer C.randomx_destroy_vm(vm)
 
-	// Prepare hash input: seal hash (32 bytes) + nonce (8 bytes)
-	nonce := header.Nonce.Uint64()
-	hashInput := make([]byte, 40)
-	copy(hashInput[:32], sealHash[:])
-	binary.LittleEndian.PutUint64(hashInput[32:], nonce)
+	// rx-eth-v1 Format Verification
+	// ===============================
+	// The stratum-proxy sends miners a 43-byte blob:
+	//   blob = headerHash(32) || extraNonce4(4) || const3(3) || nonce4_placeholder(4)
+	//
+	// Miners (xmrig) fill in nonce4 and compute: hash = RandomX(blob)
+	//
+	// The proxy combines: nonce64 = (extraNonce4 << 32) | minerNonce4
+	// and submits to geth with the combined nonce64.
+	//
+	// For verification, geth must reconstruct the EXACT same 43-byte preimage
+	// that xmrig hashed, using the extraNonce4 and minerNonce4.
 
-	// Calculate RandomX hash
+	// 1. Extract extraNonce4 from header.Extra[0:4]
+	if len(header.Extra) < 4 {
+		return fmt.Errorf("header.Extra too short for rx-eth-v1: need 4 bytes, got %d", len(header.Extra))
+	}
+	extraNonce4 := binary.LittleEndian.Uint32(header.Extra[0:4])
+
+	// 2. Extract nonce64 from header.Nonce (stored as 8-byte BlockNonce)
+	nonce64 := header.Nonce.Uint64()
+
+	// 3. Extract minerNonce4 from low 32 bits of nonce64
+	minerNonce4 := uint32(nonce64 & 0xFFFFFFFF)
+
+	// 4. Reconstruct rx-eth-v1 preimage (43 bytes total)
+	hashInput := make([]byte, 43)
+
+	// Byte 0-31: SealHash (keccak256 of RLP-encoded header without nonce/mixdigest)
+	copy(hashInput[0:32], sealHash[:])
+
+	// Byte 32-35: extraNonce4 (4 bytes, little-endian)
+	binary.LittleEndian.PutUint32(hashInput[32:36], extraNonce4)
+
+	// Byte 36-38: Constant padding (3 bytes of zeros)
+	// Already zero from make()
+
+	// Byte 39-42: minerNonce4 (4 bytes, little-endian)
+	binary.LittleEndian.PutUint32(hashInput[39:43], minerNonce4)
+
+	// 5. Calculate RandomX hash using the reconstructed preimage
 	hash := hashRandomX(vm, hashInput)
 
-	// Verify that the calculated hash matches the MixDigest
+	// 6. Verify that the calculated hash matches the MixDigest
 	if hash != header.MixDigest {
-		return errors.New("invalid mix digest")
+		return fmt.Errorf("invalid mix digest: computed %s != header %s (extraNonce=%08x minerNonce=%08x)",
+			hash.Hex(), header.MixDigest.Hex(), extraNonce4, minerNonce4)
 	}
 
-	// Verify that the hash satisfies the difficulty requirement
+	// 7. Verify that the hash satisfies the difficulty requirement
 	if !verifyRandomX(hash, header.Difficulty) {
-		return errors.New("invalid proof-of-work")
+		return fmt.Errorf("invalid proof-of-work: hash %s does not meet difficulty %s",
+			hash.Hex(), header.Difficulty.String())
 	}
 
 	return nil
@@ -605,13 +643,15 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 	// Prepare the header for hashing (without nonce)
 	sealHash := randomx.SealHash(header)
 
-	// Start nonce search
+	// Start nonce search using rx-eth-v1 format
+	// For local mining, use high 32 bits as extraNonce and low 32 bits as minerNonce
 	var (
-		nonce     = uint64(time.Now().UnixNano())
+		nonce64   = uint64(time.Now().UnixNano())
 		attempts  = uint64(0)
-		hashInput = make([]byte, 40) // 32 bytes hash + 8 bytes nonce
+		hashInput = make([]byte, 43) // rx-eth-v1: 32+4+3+4 bytes
 	)
 
+	// Copy seal hash (bytes 0-31)
 	copy(hashInput[:32], sealHash[:])
 
 	// Mining loop
@@ -624,8 +664,17 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 			log.Debug("Mining stopped", "attempts", attempts)
 			return
 		default:
-			// Try current nonce
-			binary.LittleEndian.PutUint64(hashInput[32:], nonce)
+			// Extract extraNonce4 (high 32 bits) and minerNonce4 (low 32 bits)
+			extraNonce4 := uint32(nonce64 >> 32)
+			minerNonce4 := uint32(nonce64 & 0xFFFFFFFF)
+
+			// Build rx-eth-v1 preimage (43 bytes)
+			// Bytes 0-31: sealHash (already copied above)
+			// Bytes 32-35: extraNonce4 (LE)
+			binary.LittleEndian.PutUint32(hashInput[32:36], extraNonce4)
+			// Bytes 36-38: const padding (already zero from make())
+			// Bytes 39-42: minerNonce4 (LE)
+			binary.LittleEndian.PutUint32(hashInput[39:43], minerNonce4)
 
 			// Calculate RandomX hash
 			hash := hashRandomX(vm, hashInput)
@@ -634,10 +683,21 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 			hashInt := new(big.Int).SetBytes(hash[:])
 			if hashInt.Cmp(target) <= 0 {
 				// Found valid nonce!
-				log.Info("✅ Found valid nonce!", "block", block.NumberU64(), "nonce", nonce, "attempts", attempts, "hash", common.BytesToHash(hash[:]).Hex())
+				log.Info("✅ Found valid nonce!", "block", block.NumberU64(),
+					"nonce64", fmt.Sprintf("%016x", nonce64),
+					"extraNonce", fmt.Sprintf("%08x", extraNonce4),
+					"minerNonce", fmt.Sprintf("%08x", minerNonce4),
+					"attempts", attempts, "hash", hash.Hex())
+
 				newHeader := types.CopyHeader(header)
-				newHeader.Nonce = types.EncodeNonce(nonce)
+				newHeader.Nonce = types.EncodeNonce(nonce64)
 				newHeader.MixDigest = hash
+
+				// Store extraNonce4 in header.Extra[0:4] for verification
+				if len(newHeader.Extra) < 4 {
+					newHeader.Extra = make([]byte, 4)
+				}
+				binary.LittleEndian.PutUint32(newHeader.Extra[0:4], extraNonce4)
 
 				select {
 				case found <- block.WithSeal(newHeader):
@@ -653,12 +713,12 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 			}
 
 			// Increment nonce
-			nonce++
+			nonce64++
 			attempts++
 
 			// Log progress every 100000 attempts
 			if attempts%100000 == 0 {
-				log.Debug("Mining progress", "attempts", attempts, "nonce", nonce)
+				log.Debug("Mining progress", "attempts", attempts, "nonce64", fmt.Sprintf("%016x", nonce64))
 			}
 
 			// Check abort every 1024 attempts
@@ -745,6 +805,23 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 			header := types.CopyHeader(block.Header())
 			header.Nonce = result.nonce
 			header.MixDigest = result.mixDigest
+
+			// rx-eth-v1: Extract extraNonce from high 32 bits and store in header.Extra
+			// The stratum-proxy combines: nonce64 = (extraNonce << 32) | minerNonce
+			// We need to extract extraNonce and store it for verification
+			nonce64 := header.Nonce.Uint64()
+			extraNonce4 := uint32(nonce64 >> 32)
+
+			// Store extraNonce in header.Extra[0:4] for rx-eth-v1 verification
+			if len(header.Extra) < 4 {
+				header.Extra = make([]byte, 4)
+			}
+			binary.LittleEndian.PutUint32(header.Extra[0:4], extraNonce4)
+
+			log.Debug("Remote work submitted", "nonce64", fmt.Sprintf("%016x", nonce64),
+				"extraNonce", fmt.Sprintf("%08x", extraNonce4),
+				"minerNonce", fmt.Sprintf("%08x", uint32(nonce64&0xFFFFFFFF)),
+				"hash", result.hash.Hex())
 
 			// Verify PoW (use cached chain reference)
 			if s.chain == nil {
