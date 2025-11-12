@@ -28,7 +28,7 @@ func WorkToJob(work *WorkPackage, jobID string, algo string) (*Job, error) {
 	job := &Job{
 		JobID:      jobID,
 		Blob:       blob,
-		Target:     DifficultyToTarget(difficulty),
+		Target:     DifficultyToStratumTarget(difficulty), // Use Stratum format (8 chars, little-endian)
 		Algo:       algo,
 		Height:     blockNum,
 		SeedHash:   work.SeedHash,
@@ -120,7 +120,7 @@ func TargetToDifficulty(targetHex string) (uint64, error) {
 	return difficulty.Uint64(), nil
 }
 
-// DifficultyToTarget converts difficulty to hex target
+// DifficultyToTarget converts difficulty to hex target (32 bytes for Ethereum)
 func DifficultyToTarget(difficulty uint64) string {
 	// target = 2^256 / difficulty
 	maxTarget := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
@@ -130,6 +130,34 @@ func DifficultyToTarget(difficulty uint64) string {
 	targetHex := fmt.Sprintf("%064x", target)
 
 	return targetHex
+}
+
+// DifficultyToStratumTarget converts difficulty to Stratum/xmrig target format
+// Returns 4-byte little-endian hex string (8 characters)
+func DifficultyToStratumTarget(difficulty uint64) string {
+	// For Stratum/CryptoNote: target = 0xFFFFFFFF / difficulty
+	// This gives a 32-bit target value
+	maxTarget := uint64(0xFFFFFFFF)
+
+	var target uint32
+	if difficulty > maxTarget {
+		// If difficulty is too high, use minimum target
+		target = 1
+	} else if difficulty == 0 {
+		// Avoid division by zero
+		target = 0xFFFFFFFF
+	} else {
+		target = uint32(maxTarget / difficulty)
+	}
+
+	// Convert to little-endian hex string (4 bytes = 8 hex chars)
+	// Little-endian: least significant byte first
+	b0 := byte(target & 0xFF)
+	b1 := byte((target >> 8) & 0xFF)
+	b2 := byte((target >> 16) & 0xFF)
+	b3 := byte((target >> 24) & 0xFF)
+
+	return fmt.Sprintf("%02x%02x%02x%02x", b0, b1, b2, b3)
 }
 
 // ValidateShare checks if a share meets the required difficulty
