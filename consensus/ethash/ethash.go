@@ -22,6 +22,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 // Ethash is a consensus engine based on proof-of-work implementing the ethash
@@ -63,6 +64,11 @@ func NewFullFaker() *Ethash {
 	return &Ethash{
 		fakeFull: true,
 	}
+}
+
+// APIs returns the RPC APIs this consensus engine provides.
+func (ethash *Ethash) APIs(chain consensus.ChainHeaderReader) []rpc.API {
+	return nil
 }
 
 // Close closes the exit channel to notify all backend threads exiting.

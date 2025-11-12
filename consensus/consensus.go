@@ -108,6 +108,9 @@ type Engine interface {
 	// that a new block should have.
 	CalcDifficulty(chain ChainHeaderReader, time uint64, parent *types.Header) *big.Int
 
+	// APIs returns the RPC APIs this consensus engine provides.
+	APIs(chain ChainHeaderReader) []rpc.API
+
 	// Close terminates any background threads maintained by the consensus engine.
 	Close() error
 }
