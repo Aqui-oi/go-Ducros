@@ -21,13 +21,13 @@ func WorkToJob(work *WorkPackage, jobID string, algo string) (*Job, error) {
 		return nil, fmt.Errorf("failed to parse target: %w", err)
 	}
 
-	// Create blob from header hash
-	// For RandomX, the blob is: SealHash (32 bytes) + reserved nonce space (8 bytes)
-	blob := createBlob(work.HeaderHash)
+	// Note: Blob is created per-miner in handleLogin() using createBlobRxEth()
+	// with the miner's session-specific extraNonce. We store HeaderHash here
+	// and generate the blob later for each miner.
 
 	job := &Job{
 		JobID:      jobID,
-		Blob:       blob,
+		Blob:       "", // Will be populated per-miner with their extraNonce
 		Target:     DifficultyToStratumTarget(difficulty), // Use Stratum format (8 chars, little-endian)
 		Algo:       algo,
 		Height:     blockNum,
