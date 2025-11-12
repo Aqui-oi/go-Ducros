@@ -388,6 +388,9 @@ func makeExtraData(extra []byte) []byte {
 func (s *Ethereum) APIs() []rpc.API {
 	apis := ethapi.GetAPIs(s.APIBackend)
 
+	// Append any APIs exposed by the consensus engine
+	apis = append(apis, s.engine.APIs(s.blockchain)...)
+
 	// Append all the local APIs and return
 	return append(apis, []rpc.API{
 		{
