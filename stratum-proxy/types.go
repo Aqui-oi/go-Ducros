@@ -81,6 +81,7 @@ type Miner struct {
 	Address       string                  // Payout address
 	Difficulty    uint64                  // Current difficulty
 	CurrentJob    *Job                    // Current mining job
+	ExtraNonce    uint32                  // 4-byte session-specific nonce for rx-eth-v1
 	LastActivity  time.Time               // Last seen
 	SharesValid   uint64                  // Valid shares submitted
 	SharesInvalid uint64                  // Invalid shares

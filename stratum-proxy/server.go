@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -109,9 +111,15 @@ func (s *Server) handleMiner(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 
+	// Generate random 4-byte extraNonce for rx-eth-v1 format
+	var extraNonceBytes [4]byte
+	rand.Read(extraNonceBytes[:])
+	extraNonce := binary.LittleEndian.Uint32(extraNonceBytes[:])
+
 	miner := &Miner{
 		ID:           minerID,
 		Difficulty:   uint64(s.config.InitialDiff),
+		ExtraNonce:   extraNonce,
 		LastActivity: time.Now(),
 	}
 
@@ -273,6 +281,10 @@ func (s *Server) handleLogin(miner *Miner, req *StratumRequest) *StratumResponse
 	// Send job to miner
 	miner.CurrentJob = job
 
+	// Create rx-eth-v1 blob with miner's extraNonce
+	// Format: headerHash(32) || extraNonce(4) || const3(3) || nonce4(4)
+	blob := createBlobRxEth(job.HeaderHash, miner.ExtraNonce)
+
 	// Create complete job response for xmrig RandomX compatibility
 	// Use MINER's difficulty (not blockchain difficulty) for target
 	jobResponse := JobResponse{
@@ -280,7 +292,7 @@ func (s *Server) handleLogin(miner *Miner, req *StratumRequest) *StratumResponse
 		Algo:      "rx/0",
 		SeedHash:  strings.TrimPrefix(job.SeedHash, "0x"), // Remove 0x prefix
 		Height:    job.Height,
-		Blob:      job.Blob,
+		Blob:      blob, // Use rx-eth-v1 format with miner's extraNonce
 		Target:    DifficultyToStratumTarget(miner.Difficulty),
 		CleanJobs: true,
 	}
@@ -358,39 +370,58 @@ func (s *Server) handleSubmit(miner *Miner, req *StratumRequest) *StratumRespons
 		}
 	}
 
-	// Extract nonce from result (if blob format)
-	var nonce string
-	if len(nonceStr) == 8 {
-		// nonce provided separately (8 hex chars = 4 bytes Monero format)
-		// Ethereum expects 8 bytes (16 hex chars), so pad with 4 zero bytes
-		nonce = "0x" + nonceStr + "00000000"
-	} else {
-		// Extract from blob
-		var err error
-		nonce, err = ExtractNonceFromBlob(resultStr)
-		if err != nil {
-			log.Printf("❌ Invalid nonce from %s: %v", miner.ID, err)
-			miner.SharesInvalid++
-			s.stats.RecordShare(false)
-			return &StratumResponse{
-				ID:      req.ID,
-				JSONRPC: "2.0",
-				Error: &StratumError{
-					Code:    -1,
-					Message: "Invalid nonce",
-				},
-			}
+	// Extract miner nonce4 (4 bytes LE) and combine with extraNonce
+	// xmrig sends nonce as 8 hex chars (4 bytes LE)
+	if len(nonceStr) != 8 {
+		log.Printf("❌ Invalid nonce length from %s: %d (expected 8)", miner.ID, len(nonceStr))
+		miner.SharesInvalid++
+		s.stats.RecordShare(false)
+		return &StratumResponse{
+			ID:      req.ID,
+			JSONRPC: "2.0",
+			Error: &StratumError{
+				Code:    -1,
+				Message: "Invalid nonce length",
+			},
 		}
 	}
 
-	// Ensure all hex strings have 0x prefix for Ethereum
+	// Parse miner's 4-byte nonce (little-endian)
+	minerNonceBytes, err := hex.DecodeString(nonceStr)
+	if err != nil {
+		log.Printf("❌ Invalid nonce hex from %s: %v", miner.ID, err)
+		miner.SharesInvalid++
+		s.stats.RecordShare(false)
+		return &StratumResponse{
+			ID:      req.ID,
+			JSONRPC: "2.0",
+			Error: &StratumError{
+				Code:    -1,
+				Message: "Invalid nonce hex",
+			},
+		}
+	}
+
+	minerNonce4 := binary.LittleEndian.Uint32(minerNonceBytes)
+
+	// Combine extraNonce (high 32 bits) and minerNonce (low 32 bits)
+	// nonce64 = (extraNonce << 32) | minerNonce4
+	nonce64 := (uint64(miner.ExtraNonce) << 32) | uint64(minerNonce4)
+	nonceHex := fmt.Sprintf("0x%016x", nonce64)
+
+	if s.config.Verbose {
+		log.Printf("🔢 Nonce: extraNonce=%08x minerNonce=%08x combined=%016x",
+			miner.ExtraNonce, minerNonce4, nonce64)
+	}
+
+	// Ensure result hash has 0x prefix for Ethereum
 	if !strings.HasPrefix(resultStr, "0x") {
 		resultStr = "0x" + resultStr
 	}
 
 	// Submit to Geth
 	accepted, err := s.rpcClient.SubmitWork(
-		nonce,
+		nonceHex,
 		miner.CurrentJob.HeaderHash,
 		resultStr, // Use result as mixDigest
 	)

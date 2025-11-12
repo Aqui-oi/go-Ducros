@@ -39,16 +39,11 @@ func WorkToJob(work *WorkPackage, jobID string, algo string) (*Job, error) {
 	return job, nil
 }
 
-// createBlob creates a Monero-compatible RandomX blob from Ethereum header hash
-// Monero block template structure (minimal):
-// - Major version: 1 byte (0x0E for RandomX)
-// - Minor version: 1 byte (0x0E for RandomX)
-// - Timestamp: varint (~5 bytes)
-// - Previous block hash: 32 bytes
-// - Nonce: 4 bytes (at offset 43)
-// - Miner tx prefix: variable
-// Total: minimum 76 bytes (152 hex chars)
-func createBlob(headerHash string) string {
+// createBlobRxEth creates an rx-eth-v1 format blob compatible with both xmrig and geth
+// Format: headerHash(32) || extraNonce4(4) || const3(3) || nonce4_placeholder(4) = 43 bytes
+// This format allows geth to reconstruct the exact same preimage for RandomX verification
+// extraNonce4 will be stored in header.Extra for geth to retrieve during verification
+func createBlobRxEth(headerHash string, extraNonce uint32) string {
 	// Remove 0x prefix if present
 	headerHash = strings.TrimPrefix(headerHash, "0x")
 
@@ -57,50 +52,45 @@ func createBlob(headerHash string) string {
 		headerHash = fmt.Sprintf("%064s", headerHash)
 	}
 
-	// Build Monero-compatible blob:
+	// Build rx-eth-v1 blob:
 	var blob strings.Builder
 
-	// Major version (1 byte): 0x0E (14 = RandomX hardfork version)
-	blob.WriteString("0e")
-
-	// Minor version (1 byte): 0x0E
-	blob.WriteString("0e")
-
-	// Timestamp (varint, ~5 bytes): use current unix time
-	// For simplicity, use a fixed value in varint format
-	// varint encoding of ~1700000000 (year 2023)
-	blob.WriteString("80e0d7e495") // 5 bytes varint
-
-	// Previous block hash (32 bytes): use Ethereum header as prev hash
+	// 1. Header hash (32 bytes)
 	blob.WriteString(headerHash)
 
-	// Nonce placeholder (4 bytes): will be filled by miner
+	// 2. ExtraNonce (4 bytes, little-endian)
+	blob.WriteString(fmt.Sprintf("%02x%02x%02x%02x",
+		byte(extraNonce&0xFF),
+		byte((extraNonce>>8)&0xFF),
+		byte((extraNonce>>16)&0xFF),
+		byte((extraNonce>>24)&0xFF)))
+
+	// 3. Constant padding (3 bytes) - ensures nonce at offset 39
+	blob.WriteString("000000")
+
+	// 4. Nonce placeholder (4 bytes) - will be filled by miner
 	blob.WriteString("00000000")
 
-	// Minimal miner transaction data (32 bytes padding)
-	// This makes the blob valid for xmrig parsing
-	blob.WriteString(strings.Repeat("00", 32))
-
+	// Total: 43 bytes (86 hex chars)
 	return blob.String()
 }
 
-// ExtractNonceFromBlob extracts the nonce from a Monero-compatible blob
+// ExtractNonceFromBlobRxEth extracts the miner nonce from rx-eth-v1 blob
 // Blob structure:
-// - Version: 2 bytes (offset 0-3 hex)
-// - Timestamp: 5 bytes (offset 4-13 hex)
-// - Prev hash: 32 bytes (offset 14-77 hex)
-// - Nonce: 4 bytes (offset 78-85 hex) <- THIS IS WHAT WE EXTRACT
-// - Extra: 32 bytes (offset 86+ hex)
-func ExtractNonceFromBlob(blob string) (string, error) {
+// - HeaderHash: 32 bytes (offset 0-63 hex)
+// - ExtraNonce: 4 bytes (offset 64-71 hex)
+// - Const3: 3 bytes (offset 72-77 hex)
+// - Nonce4: 4 bytes (offset 78-85 hex) <- THIS IS WHAT WE EXTRACT
+func ExtractNonceFromBlobRxEth(blob string) (string, error) {
 	// Remove any whitespace
 	blob = strings.TrimSpace(blob)
 
-	// Expected minimum length: 152 hex chars (76 bytes)
-	if len(blob) < 152 {
-		return "", fmt.Errorf("invalid blob length: %d (expected at least 152)", len(blob))
+	// Expected length: 86 hex chars (43 bytes)
+	if len(blob) < 86 {
+		return "", fmt.Errorf("invalid blob length: %d (expected at least 86)", len(blob))
 	}
 
-	// Extract nonce from Monero structure (4 bytes at offset 39)
+	// Extract nonce4 from rx-eth-v1 structure (4 bytes at offset 39)
 	// In hex: offset 78-85 (4 bytes = 8 hex chars)
 	nonceHex := blob[78:86]
 
@@ -115,11 +105,8 @@ func ExtractNonceFromBlob(blob string) (string, error) {
 		return "", fmt.Errorf("invalid nonce length: %d (expected 4)", len(nonceBytes))
 	}
 
-	// Ethereum expects 8-byte nonce, so pad the 4-byte Monero nonce
-	// Monero nonce is little-endian 32-bit, we extend to 64-bit
-	nonce := "0x" + nonceHex + "00000000" // Pad with 4 zero bytes
-
-	return nonce, nil
+	// Return just the 4-byte nonce (will be combined with extraNonce later)
+	return nonceHex, nil
 }
 
 // CalculateHash computes the RandomX hash for verification
