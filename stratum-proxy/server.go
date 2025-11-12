@@ -383,6 +383,11 @@ func (s *Server) handleSubmit(miner *Miner, req *StratumRequest) *StratumRespons
 		}
 	}
 
+	// Ensure all hex strings have 0x prefix for Ethereum
+	if !strings.HasPrefix(resultStr, "0x") {
+		resultStr = "0x" + resultStr
+	}
+
 	// Submit to Geth
 	accepted, err := s.rpcClient.SubmitWork(
 		nonce,
