@@ -9,10 +9,29 @@ import (
 // Stratum protocol types
 
 // StratumRequest represents a Stratum JSON-RPC request
+// Params can be either an array or an object depending on the method
 type StratumRequest struct {
-	ID     interface{}   `json:"id"`
-	Method string        `json:"method"`
-	Params []interface{} `json:"params"`
+	ID     interface{}      `json:"id"`
+	Method string           `json:"method"`
+	Params json.RawMessage  `json:"params"` // Can be array or object
+}
+
+// GetParamsArray returns params as array (for standard stratum methods)
+func (r *StratumRequest) GetParamsArray() ([]interface{}, error) {
+	var params []interface{}
+	if err := json.Unmarshal(r.Params, &params); err != nil {
+		return nil, err
+	}
+	return params, nil
+}
+
+// GetParamsObject returns params as object (for xmrig login method)
+func (r *StratumRequest) GetParamsObject() (map[string]interface{}, error) {
+	var params map[string]interface{}
+	if err := json.Unmarshal(r.Params, &params); err != nil {
+		return nil, err
+	}
+	return params, nil
 }
 
 // StratumResponse represents a Stratum JSON-RPC response

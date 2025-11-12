@@ -199,25 +199,39 @@ func (s *Server) handleRequest(miner *Miner, req *StratumRequest) *StratumRespon
 
 // handleLogin handles miner login
 func (s *Server) handleLogin(miner *Miner, req *StratumRequest) *StratumResponse {
-	if len(req.Params) < 1 {
-		return &StratumResponse{
-			ID: req.ID,
-			Error: &StratumError{
-				Code:    -1,
-				Message: "Missing login parameters",
-			},
+	// Try params as object first (xmrig format)
+	paramsObj, err := req.GetParamsObject()
+	var loginData map[string]interface{}
+
+	if err == nil {
+		// Params is an object directly (xmrig style)
+		loginData = paramsObj
+	} else {
+		// Try params as array (standard stratum style)
+		paramsArray, err := req.GetParamsArray()
+		if err != nil || len(paramsArray) < 1 {
+			return &StratumResponse{
+				ID: req.ID,
+				Error: &StratumError{
+					Code:    -1,
+					Message: "Missing login parameters",
+				},
+			}
+		}
+
+		// Get first element from array
+		if obj, ok := paramsArray[0].(map[string]interface{}); ok {
+			loginData = obj
+		} else if login, ok := paramsArray[0].(string); ok {
+			// Simple string login
+			miner.Address = login
+			miner.WorkerName = login
+			loginData = nil
 		}
 	}
 
-	// Parse login params
-	loginData, ok := req.Params[0].(map[string]interface{})
-	if !ok {
-		// Try as string (simple login)
-		if login, ok := req.Params[0].(string); ok {
-			miner.Address = login
-			miner.WorkerName = login
-		}
-	} else {
+	// Parse login data
+	if loginData != nil {
 		if login, ok := loginData["login"].(string); ok {
 			miner.Address = login
 		}
@@ -263,24 +277,33 @@ func (s *Server) handleLogin(miner *Miner, req *StratumRequest) *StratumResponse
 
 // handleSubmit handles share submission
 func (s *Server) handleSubmit(miner *Miner, req *StratumRequest) *StratumResponse {
-	if len(req.Params) < 1 {
-		return &StratumResponse{
-			ID: req.ID,
-			Error: &StratumError{
-				Code:    -1,
-				Message: "Missing submit parameters",
-			},
-		}
-	}
+	// Try params as object first (xmrig format)
+	submitData, err := req.GetParamsObject()
 
-	submitData, ok := req.Params[0].(map[string]interface{})
-	if !ok {
-		return &StratumResponse{
-			ID: req.ID,
-			Error: &StratumError{
-				Code:    -1,
-				Message: "Invalid submit format",
-			},
+	if err != nil {
+		// Try params as array (standard stratum style)
+		paramsArray, err := req.GetParamsArray()
+		if err != nil || len(paramsArray) < 1 {
+			return &StratumResponse{
+				ID: req.ID,
+				Error: &StratumError{
+					Code:    -1,
+					Message: "Missing submit parameters",
+				},
+			}
+		}
+
+		// Get first element from array
+		if obj, ok := paramsArray[0].(map[string]interface{}); ok {
+			submitData = obj
+		} else {
+			return &StratumResponse{
+				ID: req.ID,
+				Error: &StratumError{
+					Code:    -1,
+					Message: "Invalid submit format",
+				},
+			}
 		}
 	}
 
