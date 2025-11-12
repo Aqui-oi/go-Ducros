@@ -156,16 +156,18 @@ type hashrate struct {
 	done chan struct{}
 }
 
-// sealTask wraps a seal block with relative result channel.
+// sealTask wraps a seal block with relative result channel and chain reader.
 type sealTask struct {
 	block   *types.Block
 	results chan<- *types.Block
+	chain   consensus.ChainHeaderReader
 }
 
 // remoteSealer wraps the actual sealing work and listens for work requests and
 // returns work solutions.
 type remoteSealer struct {
 	randomx      *RandomX
+	chain        consensus.ChainHeaderReader
 	works        map[common.Hash]*types.Block
 	rates        map[common.Hash]hashrate
 	currentBlock *types.Block
@@ -467,7 +469,7 @@ func (randomx *RandomX) Seal(chain consensus.ChainHeaderReader, block *types.Blo
 	// If we have a remote sealer, send work to it
 	if randomx.remote != nil {
 		select {
-		case randomx.remote.workCh <- &sealTask{block: block, results: results}:
+		case randomx.remote.workCh <- &sealTask{block: block, results: results, chain: chain}:
 			log.Info("Work sent to remote sealer", "block", block.NumberU64())
 		case <-stop:
 			log.Info("Mining stopped before sending work")
@@ -481,10 +483,17 @@ func (randomx *RandomX) Seal(chain consensus.ChainHeaderReader, block *types.Blo
 	// No remote sealer, do local mining
 	header := block.Header()
 
-	// Initialize RandomX cache with block hash as key
-	parentHash := header.ParentHash
-	log.Debug("Initializing RandomX cache", "parentHash", parentHash.Hex())
-	if err := randomx.initCache(parentHash); err != nil {
+	// Calculate the RandomX seed for this block's epoch
+	seedHash, err := randomx.GetSeedHash(chain, header.Number)
+	if err != nil {
+		log.Error("Failed to calculate RandomX seed", "err", err)
+		return err
+	}
+
+	// Initialize RandomX cache with epoch seed
+	// Cache is reused for all blocks in the same epoch (2048 blocks)
+	log.Debug("Initializing RandomX cache", "seedHash", seedHash.Hex(), "blockNumber", header.Number)
+	if err := randomx.initCache(seedHash); err != nil {
 		log.Error("Failed to initialize RandomX cache", "err", err)
 		return err
 	}
@@ -647,6 +656,11 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 				continue
 			}
 
+			// Update chain reference (for seed calculation)
+			if work.chain != nil {
+				s.chain = work.chain
+			}
+
 			// Update current work
 			s.currentBlock = work.block
 			s.currentWork = s.makeWork(work.block)
@@ -690,8 +704,14 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 			header.Nonce = result.nonce
 			header.MixDigest = result.mixDigest
 
-			// Verify PoW
-			if err := randomx.verifyPoW(header); err != nil {
+			// Verify PoW (use cached chain reference)
+			if s.chain == nil {
+				s.mutex.Unlock()
+				log.Error("Chain reference not available for PoW verification")
+				result.errc <- errInvalidSealResult
+				continue
+			}
+			if err := randomx.verifyPoW(s.chain, header); err != nil {
 				s.mutex.Unlock()
 				log.Warn("Invalid proof-of-work submitted", "err", err)
 				result.errc <- errInvalidSealResult
@@ -757,9 +777,24 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 func (s *remoteSealer) makeWork(block *types.Block) [4]string {
 	hash := s.randomx.SealHash(block.Header())
 
+	// Calculate the epoch-based seed hash for RandomX
+	var seedHash common.Hash
+	if s.chain != nil {
+		seed, err := s.randomx.GetSeedHash(s.chain, block.Header().Number)
+		if err == nil {
+			seedHash = seed
+		} else {
+			log.Warn("Failed to get seed hash, using zero", "err", err)
+			seedHash = common.Hash{}
+		}
+	} else {
+		// Fallback: use parent hash (legacy behavior)
+		seedHash = block.ParentHash()
+	}
+
 	return [4]string{
-		hash.Hex(),               // Header hash (SealHash)
-		block.ParentHash().Hex(), // Seed hash (ParentHash for RandomX cache)
+		hash.Hex(),     // Header hash (SealHash)
+		seedHash.Hex(), // Seed hash (epoch-based RandomX seed)
 		common.BytesToHash(block.Difficulty().Bytes()).Hex(), // Target
 		hexutil.EncodeBig(block.Number()),                    // Block number
 	}

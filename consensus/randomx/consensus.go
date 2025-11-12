@@ -293,7 +293,7 @@ func (randomx *RandomX) verifyHeader(chain consensus.ChainHeaderReader, header, 
 	}
 	// Verify the RandomX proof-of-work (skip in fake/test modes)
 	if !randomx.fakeFull && (randomx.config == nil || randomx.config.PowMode == ModeNormal) {
-		if err := randomx.verifyPoW(header); err != nil {
+		if err := randomx.verifyPoW(chain, header); err != nil {
 			return err
 		}
 	}
@@ -305,9 +305,17 @@ func (randomx *RandomX) verifyHeader(chain consensus.ChainHeaderReader, header, 
 }
 
 // verifyPoW verifies the RandomX proof-of-work for a sealed header
-func (randomx *RandomX) verifyPoW(header *types.Header) error {
-	// Initialize RandomX cache with parent hash as key
-	if err := randomx.initCache(header.ParentHash); err != nil {
+func (randomx *RandomX) verifyPoW(chain consensus.ChainHeaderReader, header *types.Header) error {
+	// Calculate the RandomX seed for this block's epoch
+	// This uses the epoch-based system (2048 blocks) for cache stability
+	seedHash, err := randomx.GetSeedHash(chain, header.Number)
+	if err != nil {
+		return fmt.Errorf("failed to calculate RandomX seed: %w", err)
+	}
+
+	// Initialize RandomX cache with the epoch seed
+	// Cache is reused for all blocks in the same epoch (2048 blocks)
+	if err := randomx.initCache(seedHash); err != nil {
 		return fmt.Errorf("failed to initialize RandomX cache: %w", err)
 	}
 
