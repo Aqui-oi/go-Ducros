@@ -488,7 +488,7 @@ func (s *Server) printStats() {
 	}
 	s.minersMu.RUnlock()
 
-	total, active, shares, valid, invalid, blocks, _, uptime := s.stats.GetStats()
+	total, _, shares, valid, invalid, blocks, _, uptime := s.stats.GetStats()
 	s.stats.UpdateMiners(totalMiners, activeMiners)
 	s.stats.UpdateHashrate(totalHashrate)
 
