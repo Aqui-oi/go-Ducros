@@ -39,7 +39,7 @@ type StratumResponse struct {
 	ID      interface{} `json:"id"`
 	JSONRPC string      `json:"jsonrpc"`
 	Result  interface{} `json:"result,omitempty"`
-	Error   interface{} `json:"error"` // Must always be present (null for success)
+	Error   interface{} `json:"error,omitempty"` // Only include on errors
 }
 
 // StratumError represents a Stratum error
