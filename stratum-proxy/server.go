@@ -274,10 +274,11 @@ func (s *Server) handleLogin(miner *Miner, req *StratumRequest) *StratumResponse
 	miner.CurrentJob = job
 
 	// Create minimal job response for xmrig compatibility
+	// Use MINER's difficulty (not blockchain difficulty) for target
 	jobResponse := JobResponse{
 		JobID:  job.JobID,
 		Blob:   job.Blob,
-		Target: job.Target,
+		Target: DifficultyToStratumTarget(miner.Difficulty),
 	}
 
 	result := map[string]interface{}{
