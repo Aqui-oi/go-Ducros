@@ -39,54 +39,85 @@ func WorkToJob(work *WorkPackage, jobID string, algo string) (*Job, error) {
 	return job, nil
 }
 
-// createBlob creates a Monero-style blob from Ethereum header hash
-// Format: HeaderHash (32 bytes) + Nonce placeholder (8 bytes) = 40 bytes total
+// createBlob creates a Monero-compatible RandomX blob from Ethereum header hash
+// Monero block template structure (minimal):
+// - Major version: 1 byte (0x0E for RandomX)
+// - Minor version: 1 byte (0x0E for RandomX)
+// - Timestamp: varint (~5 bytes)
+// - Previous block hash: 32 bytes
+// - Nonce: 4 bytes (at offset 43)
+// - Miner tx prefix: variable
+// Total: minimum 76 bytes (152 hex chars)
 func createBlob(headerHash string) string {
 	// Remove 0x prefix if present
 	headerHash = strings.TrimPrefix(headerHash, "0x")
 
 	// Ensure it's 32 bytes (64 hex chars)
 	if len(headerHash) != 64 {
-		// Pad or truncate
 		headerHash = fmt.Sprintf("%064s", headerHash)
 	}
 
-	// Append 8 bytes (16 hex chars) of zeros for nonce placeholder
-	blob := headerHash + "0000000000000000"
+	// Build Monero-compatible blob:
+	var blob strings.Builder
 
-	return blob
+	// Major version (1 byte): 0x0E (14 = RandomX hardfork version)
+	blob.WriteString("0e")
+
+	// Minor version (1 byte): 0x0E
+	blob.WriteString("0e")
+
+	// Timestamp (varint, ~5 bytes): use current unix time
+	// For simplicity, use a fixed value in varint format
+	// varint encoding of ~1700000000 (year 2023)
+	blob.WriteString("80e0d7e495") // 5 bytes varint
+
+	// Previous block hash (32 bytes): use Ethereum header as prev hash
+	blob.WriteString(headerHash)
+
+	// Nonce placeholder (4 bytes): will be filled by miner
+	blob.WriteString("00000000")
+
+	// Minimal miner transaction data (32 bytes padding)
+	// This makes the blob valid for xmrig parsing
+	blob.WriteString(strings.Repeat("00", 32))
+
+	return blob.String()
 }
 
-// ExtractNonceFromBlob extracts the nonce from a submitted blob
-// The nonce is in the last 8 bytes of the blob (bytes 32-39)
+// ExtractNonceFromBlob extracts the nonce from a Monero-compatible blob
+// Blob structure:
+// - Version: 2 bytes (offset 0-3 hex)
+// - Timestamp: 5 bytes (offset 4-13 hex)
+// - Prev hash: 32 bytes (offset 14-77 hex)
+// - Nonce: 4 bytes (offset 78-85 hex) <- THIS IS WHAT WE EXTRACT
+// - Extra: 32 bytes (offset 86+ hex)
 func ExtractNonceFromBlob(blob string) (string, error) {
 	// Remove any whitespace
 	blob = strings.TrimSpace(blob)
 
-	// Expected length: 80 hex chars (40 bytes)
-	if len(blob) != 80 {
-		return "", fmt.Errorf("invalid blob length: %d (expected 80)", len(blob))
+	// Expected minimum length: 152 hex chars (76 bytes)
+	if len(blob) < 152 {
+		return "", fmt.Errorf("invalid blob length: %d (expected at least 152)", len(blob))
 	}
 
-	// Extract nonce from bytes 32-39 (hex chars 64-79)
-	nonceHex := blob[64:80]
+	// Extract nonce from Monero structure (4 bytes at offset 39)
+	// In hex: offset 78-85 (4 bytes = 8 hex chars)
+	nonceHex := blob[78:86]
 
-	// Monero/xmrig sends nonce in little-endian format within the blob
-	// Ethereum expects the nonce as a hex string "0x" + 16 hex chars
-	// Since both use little-endian, we can pass through directly
+	// Decode to verify it's valid hex
 	nonceBytes, err := hex.DecodeString(nonceHex)
 	if err != nil {
 		return "", fmt.Errorf("invalid nonce hex: %w", err)
 	}
 
-	// Verify we have exactly 8 bytes
-	if len(nonceBytes) != 8 {
-		return "", fmt.Errorf("invalid nonce length: %d (expected 8)", len(nonceBytes))
+	// Verify we have exactly 4 bytes
+	if len(nonceBytes) != 4 {
+		return "", fmt.Errorf("invalid nonce length: %d (expected 4)", len(nonceBytes))
 	}
 
-	// Format as 0x + 16 hex chars (8 bytes little-endian)
-	// Note: Ethereum BlockNonce is [8]byte and we preserve byte order from blob
-	nonce := "0x" + nonceHex
+	// Ethereum expects 8-byte nonce, so pad the 4-byte Monero nonce
+	// Monero nonce is little-endian 32-bit, we extend to 64-bit
+	nonce := "0x" + nonceHex + "00000000" // Pad with 4 zero bytes
 
 	return nonce, nil
 }
