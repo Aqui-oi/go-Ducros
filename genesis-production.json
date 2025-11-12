@@ -13,8 +13,6 @@
     "muirGlacierBlock": 0,
     "berlinBlock": 0,
     "londonBlock": 0,
-    "arrowGlacierBlock": 0,
-    "grayGlacierBlock": 0,
     "randomx": {
       "lwmaActivationBlock": 0
     }
@@ -23,7 +21,7 @@
   "timestamp": "0x0",
   "extraData": "0x447563726f73204e6574776f726b202d2052616e646f6d58",
   "gasLimit": "0x7a1200",
-  "difficulty": "0x1",
+  "difficulty": "0x400",
   "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
   "coinbase": "0x0000000000000000000000000000000000000000",
   "alloc": {
@@ -34,5 +32,5 @@
   "number": "0x0",
   "gasUsed": "0x0",
   "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-  "baseFeePerGas": null
+  "baseFeePerGas": "0x3b9aca00"
 }

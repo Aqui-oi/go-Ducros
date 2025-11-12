@@ -259,6 +259,35 @@ func NewFullFaker() *RandomX {
 	}
 }
 
+// getOptimalFlags returns the best RandomX flags for this system with fallback
+func getOptimalFlags() C.randomx_flags {
+	// Try optimal flags: JIT + HardAES + Large Pages (best performance)
+	optimalFlags := C.randomx_flags(C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES | C.RANDOMX_FLAG_LARGE_PAGES)
+
+	// Test if we can allocate with optimal flags
+	testCache := C.randomx_alloc_cache(optimalFlags)
+	if testCache != nil {
+		C.randomx_release_cache(testCache)
+		log.Info("RandomX using optimal flags", "jit", true, "hugepages", true, "hardAES", true)
+		return optimalFlags
+	}
+
+	// Fallback 1: JIT + HardAES (no huge pages)
+	fallback1 := C.randomx_flags(C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES)
+	testCache = C.randomx_alloc_cache(fallback1)
+	if testCache != nil {
+		C.randomx_release_cache(testCache)
+		log.Warn("RandomX using JIT without huge pages (performance -30%)", "jit", true, "hugepages", false)
+		return fallback1
+	}
+
+	// Fallback 2: HardAES only (no JIT, no huge pages) - slowest but stable
+	fallback2 := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_HARD_AES)
+	log.Warn("RandomX using interpreted mode (performance -10-15×)", "jit", false, "hugepages", false,
+		"hint", "Enable huge pages: sudo sysctl -w vm.nr_hugepages=1280")
+	return fallback2
+}
+
 // initCache initializes the RandomX cache with the given key
 func (randomx *RandomX) initCache(key common.Hash) error {
 	randomx.cacheMutex.Lock()
@@ -275,9 +304,8 @@ func (randomx *RandomX) initCache(key common.Hash) error {
 		randomx.cache = nil
 	}
 
-	// Get recommended flags for RandomX
-	// JIT disabled to avoid segfaults on systems with security restrictions
-	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_HARD_AES)
+	// Get optimal flags with automatic fallback
+	flags := getOptimalFlags()
 
 	// Allocate and initialize cache
 	randomx.cache = C.randomx_alloc_cache(flags)
@@ -410,8 +438,8 @@ func verifyPoWWithCache(cache *C.randomx_cache, sealHash common.Hash, header *ty
 		return errors.New("randomx cache not initialized")
 	}
 
-	// Create VM for verification (JIT disabled to avoid segfaults)
-	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_HARD_AES)
+	// Create VM for verification with optimal flags (same as cache)
+	flags := getOptimalFlags()
 	vm := C.randomx_create_vm(flags, cache, nil)
 	if vm == nil {
 		return errors.New("failed to create RandomX VM for verification")
@@ -547,18 +575,16 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 		return
 	}
 
-	log.Debug("Creating RandomX VM")
-	// Create VM in interpreted mode (no JIT to avoid crashes)
-	// JIT can cause segfaults on some systems due to security restrictions
-	// Interpreted mode is slower but more stable
-	flags := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_HARD_AES)
+	log.Debug("Creating RandomX VM for mining")
+	// Create VM with optimal flags (JIT + hugepages if available)
+	flags := getOptimalFlags()
 	vm := C.randomx_create_vm(flags, cache, nil)
 	if vm == nil {
 		log.Error("Failed to create RandomX VM!")
 		return
 	}
 	defer C.randomx_destroy_vm(vm)
-	log.Info("RandomX VM created in interpreted mode, starting nonce search...")
+	log.Info("RandomX VM created, starting nonce search...")
 
 	// Prepare the header for hashing (without nonce)
 	sealHash := randomx.SealHash(header)

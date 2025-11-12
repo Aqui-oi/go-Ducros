@@ -16,10 +16,13 @@ const (
 	LWMAWindowSize              = 60
 	LWMATargetBlockTime         = 13
 	LWMAMinDifficulty           = 1
-	LWMAMaxAdjustmentUp         = 2
-	LWMAMaxAdjustmentDown       = 2
-	LWMATimestampMaxFutureDrift = 15
-	LWMATimestampMaxPastDrift   = 91
+	LWMAMaxAdjustmentUp         = 2    // 2× max increase per block (anti-pump)
+	LWMAMaxAdjustmentDown       = 2    // 2× max decrease per block (anti-dump)
+	LWMATimestampMaxFutureDrift = 15   // 15 seconds future tolerance
+	LWMATimestampMaxPastDrift   = 91   // 91 seconds past tolerance (7× target time)
+	LWMABurstDetectionWindow    = 10   // Last 10 blocks for burst detection
+	LWMABurstThreshold          = 3    // 3× variance = burst attack suspected
+	LWMADampingFactor           = 0.9  // Damping for rapid adjustments (90%)
 )
 
 // CalcDifficultyLWMA calculates difficulty using LWMA-3 algorithm
@@ -49,14 +52,19 @@ func CalcDifficultyLWMA(chain consensus.ChainHeaderReader, time uint64, parent *
 		}
 	}
 
-	// Calculate LWMA
+	// Detect hashrate burst attack by analyzing recent solve time variance
+	burstDetected := detectHashrateBurst(blockTimes, LWMAWindowSize)
+
+	// Calculate LWMA with burst protection
 	for i := 0; i < LWMAWindowSize-1; i++ {
 		solveTime := blockTimes[i+1] - blockTimes[i]
 		if solveTime == 0 {
 			solveTime = 1
 		}
-		if solveTime > 6*LWMATargetBlockTime {
-			solveTime = 6 * LWMATargetBlockTime
+		// Extended clipping for anti-burst protection
+		// Cap extremely slow blocks at 10× target time (was 6×)
+		if solveTime > 10*LWMATargetBlockTime {
+			solveTime = 10 * LWMATargetBlockTime
 		}
 
 		weight := int64(i + 1)
@@ -71,6 +79,22 @@ func CalcDifficultyLWMA(chain consensus.ChainHeaderReader, time uint64, parent *
 	}
 
 	nextDifficulty := new(big.Int).Div(weightedDifficultySum, weightedSolveTimeSum)
+
+	// Apply damping if burst detected to prevent difficulty crash after attacker leaves
+	if burstDetected {
+		// Damping: blend 90% new difficulty + 10% parent difficulty
+		dampingNum := big.NewInt(9)   // 90%
+		dampingDen := big.NewInt(10)  // 100%
+
+		dampedDiff := new(big.Int).Mul(nextDifficulty, dampingNum)
+		dampedDiff.Div(dampedDiff, dampingDen)
+
+		parentContrib := new(big.Int).Sub(dampingDen, dampingNum)
+		parentPart := new(big.Int).Mul(parent.Difficulty, parentContrib)
+		parentPart.Div(parentPart, dampingDen)
+
+		nextDifficulty = new(big.Int).Add(dampedDiff, parentPart)
+	}
 
 	minDiff := big.NewInt(LWMAMinDifficulty)
 	if nextDifficulty.Cmp(minDiff) < 0 {
@@ -99,4 +123,74 @@ func ShouldUseLWMA(config *params.ChainConfig, blockNumber *big.Int) bool {
 		return true
 	}
 	return false
+}
+
+// detectHashrateBurst detects sudden hashrate changes that indicate burst mining attack
+// Returns true if suspicious burst pattern detected in recent blocks
+func detectHashrateBurst(blockTimes []uint64, windowSize int) bool {
+	if windowSize < LWMABurstDetectionWindow+1 {
+		return false // Not enough blocks
+	}
+
+	// Analyze last LWMABurstDetectionWindow blocks
+	recentStart := windowSize - LWMABurstDetectionWindow - 1
+	recentSolveTimes := make([]uint64, 0, LWMABurstDetectionWindow)
+
+	// Calculate solve times for recent window
+	for i := recentStart; i < windowSize-1; i++ {
+		solveTime := blockTimes[i+1] - blockTimes[i]
+		if solveTime == 0 {
+			solveTime = 1
+		}
+		recentSolveTimes = append(recentSolveTimes, solveTime)
+	}
+
+	// Calculate average and variance of recent solve times
+	var sum uint64
+	for _, t := range recentSolveTimes {
+		sum += t
+	}
+	avgSolveTime := sum / uint64(len(recentSolveTimes))
+
+	// Calculate variance
+	var varianceSum uint64
+	for _, t := range recentSolveTimes {
+		diff := int64(t) - int64(avgSolveTime)
+		if diff < 0 {
+			diff = -diff
+		}
+		varianceSum += uint64(diff * diff)
+	}
+	variance := varianceSum / uint64(len(recentSolveTimes))
+	stdDev := uint64(0)
+
+	// Simple integer square root for standard deviation
+	if variance > 0 {
+		x := variance
+		for {
+			root := (x + variance/x) / 2
+			if root >= x {
+				break
+			}
+			x = root
+		}
+		stdDev = x
+	}
+
+	// Burst detected if:
+	// 1. Recent average solve time is much faster than target (< 50% target)
+	// 2. High variance (stdDev > 2× average) indicating unstable hashrate
+	fastBurst := avgSolveTime < (LWMATargetBlockTime / 2)
+	highVariance := stdDev > (2 * avgSolveTime)
+
+	// Additional check: detect if most recent blocks are consistently fast
+	veryFastBlocks := 0
+	for _, t := range recentSolveTimes {
+		if t < (LWMATargetBlockTime / 2) {
+			veryFastBlocks++
+		}
+	}
+	sustainedBurst := veryFastBlocks > (LWMABurstDetectionWindow * 6 / 10) // 60%+ fast blocks
+
+	return (fastBurst && highVariance) || sustainedBurst
 }

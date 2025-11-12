@@ -231,8 +231,15 @@ func (randomx *RandomX) verifyHeader(chain consensus.ChainHeaderReader, header, 
 			return consensus.ErrFutureBlock
 		}
 	}
-	if header.Time <= parent.Time {
+	// Allow equal timestamp but enforce median-time-past (MTP) rule to prevent manipulation
+	// For LWMA difficulty algorithm, we need to prevent timestamp manipulation
+	// Allow same timestamp as parent, but verify against median of last 11 blocks
+	if header.Time < parent.Time {
 		return errOlderBlockTime
+	}
+	// Verify median-time-past: block timestamp must be greater than median of last 11 blocks
+	if err := randomx.verifyMedianTimePast(chain, header, parent); err != nil {
+		return err
 	}
 	// Verify the block's difficulty based on its timestamp and parent's difficulty
 	expected := randomx.CalcDifficulty(chain, header.Time, parent)
@@ -301,6 +308,51 @@ func (randomx *RandomX) verifyHeader(chain consensus.ChainHeaderReader, header, 
 	if err := misc.VerifyDAOHeaderExtraData(chain.Config(), header); err != nil {
 		return err
 	}
+	return nil
+}
+
+// verifyMedianTimePast implements the Median-Time-Past (MTP) rule to prevent timestamp manipulation
+// The block timestamp must be greater than the median of the last 11 blocks
+// This is critical for LWMA difficulty algorithm security
+func (randomx *RandomX) verifyMedianTimePast(chain consensus.ChainHeaderReader, header, parent *types.Header) error {
+	const medianTimeBlocks = 11
+
+	// Collect timestamps from last 11 blocks
+	timestamps := make([]uint64, 0, medianTimeBlocks)
+	current := parent
+
+	for i := 0; i < medianTimeBlocks && current != nil; i++ {
+		timestamps = append(timestamps, current.Time)
+		if current.Number.Uint64() == 0 {
+			break
+		}
+		current = chain.GetHeader(current.ParentHash, current.Number.Uint64()-1)
+	}
+
+	// If we have less than 11 blocks, use what we have (early chain)
+	if len(timestamps) == 0 {
+		return nil
+	}
+
+	// Sort timestamps to find median
+	sortedTimes := make([]uint64, len(timestamps))
+	copy(sortedTimes, timestamps)
+	for i := 0; i < len(sortedTimes)-1; i++ {
+		for j := i + 1; j < len(sortedTimes); j++ {
+			if sortedTimes[i] > sortedTimes[j] {
+				sortedTimes[i], sortedTimes[j] = sortedTimes[j], sortedTimes[i]
+			}
+		}
+	}
+
+	// Get median (middle element)
+	median := sortedTimes[len(sortedTimes)/2]
+
+	// Block timestamp must be greater than median
+	if header.Time <= median {
+		return fmt.Errorf("timestamp %d not greater than median-time-past %d", header.Time, median)
+	}
+
 	return nil
 }
 
