@@ -18,6 +18,7 @@ package randomx
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -92,13 +93,13 @@ func calcSeedHash(chain consensus.ChainHeaderReader, blockNumber *big.Int) (comm
 	}
 
 	// Get the seed block header
+	// CRITICAL: This MUST be available or the node cannot validate blocks
 	seedHeader := chain.GetHeaderByNumber(seedBlockNum)
 	if seedHeader == nil {
-		// Fallback: use block number as seed
-		// This should rarely happen in normal operation
-		var buf [8]byte
-		binary.BigEndian.PutUint64(buf[:], seedBlockNum)
-		return crypto.Keccak256Hash(buf[:]), nil
+		// CONSENSUS FAILURE: Seed block header not found
+		// This indicates the node is not fully synced or has a corrupted chain
+		// We CANNOT use a fallback as it would cause consensus divergence
+		return common.Hash{}, fmt.Errorf("seed block %d header not found (consensus critical)", seedBlockNum)
 	}
 
 	// Use the block hash as RandomX seed

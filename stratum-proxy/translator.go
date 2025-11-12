@@ -72,20 +72,22 @@ func ExtractNonceFromBlob(blob string) (string, error) {
 	// Extract nonce from bytes 32-39 (hex chars 64-79)
 	nonceHex := blob[64:80]
 
-	// Convert to little-endian format for Ethereum
-	// xmrig sends nonce in big-endian, we need little-endian
+	// Monero/xmrig sends nonce in little-endian format within the blob
+	// Ethereum expects the nonce as a hex string "0x" + 16 hex chars
+	// Since both use little-endian, we can pass through directly
 	nonceBytes, err := hex.DecodeString(nonceHex)
 	if err != nil {
 		return "", fmt.Errorf("invalid nonce hex: %w", err)
 	}
 
-	// Reverse bytes for little-endian
-	for i, j := 0, len(nonceBytes)-1; i < j; i, j = i+1, j-1 {
-		nonceBytes[i], nonceBytes[j] = nonceBytes[j], nonceBytes[i]
+	// Verify we have exactly 8 bytes
+	if len(nonceBytes) != 8 {
+		return "", fmt.Errorf("invalid nonce length: %d (expected 8)", len(nonceBytes))
 	}
 
-	// Format as 0x + 16 hex chars (8 bytes)
-	nonce := fmt.Sprintf("0x%016x", binary.LittleEndian.Uint64(nonceBytes))
+	// Format as 0x + 16 hex chars (8 bytes little-endian)
+	// Note: Ethereum BlockNonce is [8]byte and we preserve byte order from blob
+	nonce := "0x" + nonceHex
 
 	return nonce, nil
 }

@@ -358,6 +358,22 @@ func (randomx *RandomX) verifyMedianTimePast(chain consensus.ChainHeaderReader, 
 
 // verifyPoW verifies the RandomX proof-of-work for a sealed header
 func (randomx *RandomX) verifyPoW(chain consensus.ChainHeaderReader, header *types.Header) error {
+	blockHash := header.Hash()
+
+	// DoS protection: Check if we've recently verified this block
+	randomx.verifyMutex.Lock()
+	if randomx.recentBlocks.Contains(blockHash) {
+		randomx.verifyMutex.Unlock()
+		return nil // Already verified successfully
+	}
+
+	// Check fail cache to avoid re-verifying known bad blocks
+	if err, exists := randomx.failCache.Get(blockHash); exists {
+		randomx.verifyMutex.Unlock()
+		return err.(error) // Return cached error
+	}
+	randomx.verifyMutex.Unlock()
+
 	// Calculate the RandomX seed for this block's epoch
 	// This uses the epoch-based system (2048 blocks) for cache stability
 	seedHash, err := randomx.GetSeedHash(chain, header.Number)
@@ -371,18 +387,34 @@ func (randomx *RandomX) verifyPoW(chain consensus.ChainHeaderReader, header *typ
 		return fmt.Errorf("failed to initialize RandomX cache: %w", err)
 	}
 
-	// Get cache for verification
-	randomx.cacheMutex.RLock()
-	cache := randomx.cache
-	randomx.cacheMutex.RUnlock()
-
-	// Get seal hash
+	// Get seal hash (before locking, as it doesn't need cache)
 	sealHash := randomx.SealHash(header)
 
-	// Verify PoW using the cache (all C operations are in randomx.go)
-	if err := verifyPoWWithCache(cache, sealHash, header); err != nil {
-		return fmt.Errorf("proof-of-work verification failed: %w", err)
+	// CRITICAL: Hold read lock for entire verification to prevent cache rotation
+	// race condition where another thread could free the cache while we're using it
+	randomx.cacheMutex.RLock()
+	defer randomx.cacheMutex.RUnlock()
+
+	cache := randomx.cache
+	if cache == nil {
+		return fmt.Errorf("randomx cache not initialized for block %d", header.Number)
 	}
+
+	// Verify PoW using the cache (all C operations are in randomx.go)
+	// Cache is protected by RLock for entire duration
+	if err := verifyPoWWithCache(cache, sealHash, header); err != nil {
+		verifyErr := fmt.Errorf("proof-of-work verification failed: %w", err)
+		// Cache the failure to prevent re-verification attacks
+		randomx.verifyMutex.Lock()
+		randomx.failCache.Add(blockHash, verifyErr)
+		randomx.verifyMutex.Unlock()
+		return verifyErr
+	}
+
+	// Cache successful verification
+	randomx.verifyMutex.Lock()
+	randomx.recentBlocks.Add(blockHash, true)
+	randomx.verifyMutex.Unlock()
 
 	return nil
 }

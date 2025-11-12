@@ -71,6 +71,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	lru "github.com/ethereum/go-ethereum/common/lru"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -96,6 +97,11 @@ type RandomX struct {
 
 	// Hashrate tracking
 	hashrate metrics.Meter
+
+	// DoS protection
+	recentBlocks *lru.Cache // Cache of recently verified blocks to prevent re-verification attacks
+	failCache    *lru.Cache // Cache of recently failed verifications (hash -> error)
+	verifyMutex  sync.Mutex // Protects verification metrics and throttling
 
 	// Testing/development modes
 	fakeFail  *uint64        // Block number which fails PoW check even in fake mode
@@ -195,11 +201,19 @@ func New(config *Config) *RandomX {
 		}
 	}
 
+	// Initialize DoS protection caches
+	recentBlocks, _ := lru.New(1024) // Cache 1024 recent block hashes
+	failCache, _ := lru.New(256)     // Cache 256 recent failures
+
 	randomx := &RandomX{
-		config:   config,
-		hashrate: *metrics.NewMeter(),
+		config:       config,
+		hashrate:     *metrics.NewMeter(),
+		recentBlocks: recentBlocks,
+		failCache:    failCache,
 	}
 	randomx.remote = startRemoteSealer(randomx)
+
+	log.Info("RandomX DoS protection enabled", "blockCache", 1024, "failCache", 256)
 
 	return randomx
 }
@@ -565,11 +579,12 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 
 	log.Info("RandomX mine starting", "block", block.NumberU64(), "difficulty", header.Difficulty, "target", target.String())
 
-	// Get RandomX VM from pool or create new one
+	// CRITICAL: Lock cache for entire mining duration to prevent rotation
+	// If cache is rotated (epoch change), the VM would reference freed memory
 	randomx.cacheMutex.RLock()
-	cache := randomx.cache
-	randomx.cacheMutex.RUnlock()
+	defer randomx.cacheMutex.RUnlock()
 
+	cache := randomx.cache
 	if cache == nil {
 		log.Error("RandomX cache is nil!")
 		return
@@ -577,6 +592,7 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 
 	log.Debug("Creating RandomX VM for mining")
 	// Create VM with optimal flags (JIT + hugepages if available)
+	// VM holds a reference to cache, so cache must remain valid for VM lifetime
 	flags := getOptimalFlags()
 	vm := C.randomx_create_vm(flags, cache, nil)
 	if vm == nil {
@@ -818,10 +834,13 @@ func (s *remoteSealer) makeWork(block *types.Block) [4]string {
 		seedHash = block.ParentHash()
 	}
 
+	// Calculate target = 2^256 / difficulty (mining boundary condition)
+	target := new(big.Int).Div(maxUint256, block.Difficulty())
+
 	return [4]string{
-		hash.Hex(),     // Header hash (SealHash)
-		seedHash.Hex(), // Seed hash (epoch-based RandomX seed)
-		common.BytesToHash(block.Difficulty().Bytes()).Hex(), // Target
-		hexutil.EncodeBig(block.Number()),                    // Block number
+		hash.Hex(),                       // [0] Header hash (SealHash) - what to hash
+		seedHash.Hex(),                   // [1] Seed hash (epoch-based RandomX seed) - RandomX key
+		common.BytesToHash(target.Bytes()).Hex(), // [2] Target boundary (2^256/difficulty)
+		hexutil.EncodeBig(block.Number()), // [3] Block number
 	}
 }
