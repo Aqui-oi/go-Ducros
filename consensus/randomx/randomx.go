@@ -75,7 +75,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 // RandomX is a consensus engine based on proof-of-work implementing the RandomX
