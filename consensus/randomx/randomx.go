@@ -174,15 +174,15 @@ type remoteSealer struct {
 	reqWG        sync.WaitGroup   // Tracks remote sealing threads
 	mutex        sync.Mutex
 
-	fetchWorkCh   chan *sealWork
-	submitWorkCh  chan *mineResult
-	submitRateCh  chan *hashrate
-	fetchRateCh   chan chan uint64
-	requestExit   chan struct{}
-	exitCh        chan struct{}
-	startCh       chan struct{}
-	cancelCh      chan struct{}
-	workCh        chan *sealTask
+	fetchWorkCh  chan *sealWork
+	submitWorkCh chan *mineResult
+	submitRateCh chan *hashrate
+	fetchRateCh  chan chan uint64
+	requestExit  chan struct{}
+	exitCh       chan struct{}
+	startCh      chan struct{}
+	cancelCh     chan struct{}
+	workCh       chan *sealTask
 }
 
 // New creates a full-featured RandomX consensus engine with the given configuration.
@@ -640,7 +640,7 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 		case work := <-s.workCh:
 			// New work arrived, update current work and notify all subscribers
 			s.mutex.Lock()
-			
+
 			if s.currentBlock != nil && work.block.ParentHash() != s.currentBlock.ParentHash() {
 				// New work is stale, ignore
 				s.mutex.Unlock()
@@ -675,7 +675,7 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 		case result := <-s.submitWorkCh:
 			// Submit work result
 			s.mutex.Lock()
-			
+
 			// Make sure the work submitted is present
 			block := s.works[result.hash]
 			if block == nil {
@@ -758,9 +758,9 @@ func (s *remoteSealer) makeWork(block *types.Block) [4]string {
 	hash := s.randomx.SealHash(block.Header())
 
 	return [4]string{
-		hash.Hex(),                                 // Header hash (SealHash)
-		block.ParentHash().Hex(),                   // Seed hash (ParentHash for RandomX cache)
+		hash.Hex(),               // Header hash (SealHash)
+		block.ParentHash().Hex(), // Seed hash (ParentHash for RandomX cache)
 		common.BytesToHash(block.Difficulty().Bytes()).Hex(), // Target
-		hexutil.EncodeBig(block.Number()),          // Block number
+		hexutil.EncodeBig(block.Number()),                    // Block number
 	}
 }

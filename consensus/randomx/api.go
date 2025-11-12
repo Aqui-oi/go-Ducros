@@ -27,9 +27,9 @@ import (
 )
 
 var (
-	errRandomXStopped         = errors.New("randomx stopped")
-	errNoMiningWork          = errors.New("no mining work available yet")
-	errInvalidSealResult     = errors.New("invalid or stale proof-of-work solution")
+	errRandomXStopped    = errors.New("randomx stopped")
+	errNoMiningWork      = errors.New("no mining work available yet")
+	errInvalidSealResult = errors.New("invalid or stale proof-of-work solution")
 )
 
 // API exposes RandomX related methods for the RPC interface.
@@ -40,10 +40,11 @@ type API struct {
 // GetWork returns a work package for external miner.
 //
 // The work package consists of 4 strings:
-//   result[0] - 32 bytes hex encoded current block header pow-hash (SealHash)
-//   result[1] - 32 bytes hex encoded seed hash (ParentHash) used for RandomX cache
-//   result[2] - 32 bytes hex encoded boundary condition ("target"), 2^256/difficulty
-//   result[3] - hex encoded block number
+//
+//	result[0] - 32 bytes hex encoded current block header pow-hash (SealHash)
+//	result[1] - 32 bytes hex encoded seed hash (ParentHash) used for RandomX cache
+//	result[2] - 32 bytes hex encoded boundary condition ("target"), 2^256/difficulty
+//	result[3] - hex encoded block number
 func (api *API) GetWork() ([4]string, error) {
 	if api.randomx.remote == nil {
 		return [4]string{}, errors.New("not supported")

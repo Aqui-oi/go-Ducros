@@ -29,12 +29,12 @@ func CalcDifficultyLWMA(chain consensus.ChainHeaderReader, time uint64, parent *
 	}
 
 	var (
-		blockTimes           = make([]uint64, LWMAWindowSize)
-		difficulties         = make([]*big.Int, LWMAWindowSize)
+		blockTimes            = make([]uint64, LWMAWindowSize)
+		difficulties          = make([]*big.Int, LWMAWindowSize)
 		weightedSolveTimeSum  = big.NewInt(0)
-		weightSum            = big.NewInt(0)
+		weightSum             = big.NewInt(0)
 		weightedDifficultySum = big.NewInt(0)
-		currentBlock         = parent
+		currentBlock          = parent
 	)
 
 	// Collect last N blocks

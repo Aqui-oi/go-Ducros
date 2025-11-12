@@ -22,12 +22,14 @@ func newMockChainReader(config *params.ChainConfig) *mockChainReader {
 	}
 }
 
-func (m *mockChainReader) Config() *params.ChainConfig                      { return m.config }
-func (m *mockChainReader) GetHeader(hash common.Hash, number uint64) *types.Header { return m.headers[number] }
-func (m *mockChainReader) GetHeaderByNumber(number uint64) *types.Header   { return m.headers[number] }
-func (m *mockChainReader) GetHeaderByHash(hash common.Hash) *types.Header  { return nil }
-func (m *mockChainReader) GetTd(hash common.Hash, number uint64) *big.Int  { return big.NewInt(0) }
-func (m *mockChainReader) addHeader(header *types.Header)                   { m.headers[header.Number.Uint64()] = header }
+func (m *mockChainReader) Config() *params.ChainConfig { return m.config }
+func (m *mockChainReader) GetHeader(hash common.Hash, number uint64) *types.Header {
+	return m.headers[number]
+}
+func (m *mockChainReader) GetHeaderByNumber(number uint64) *types.Header  { return m.headers[number] }
+func (m *mockChainReader) GetHeaderByHash(hash common.Hash) *types.Header { return nil }
+func (m *mockChainReader) GetTd(hash common.Hash, number uint64) *big.Int { return big.NewInt(0) }
+func (m *mockChainReader) addHeader(header *types.Header)                 { m.headers[header.Number.Uint64()] = header }
 
 func TestLWMABasic(t *testing.T) {
 	config := &params.ChainConfig{
