@@ -328,8 +328,23 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
 	// Start mining if --mine flag is set and we have an Ethereum backend
 	if ctx.Bool(utils.MiningEnabledFlag.Name) && eth != nil {
-		// Check if we have an etherbase address configured
-		etherbase := cfg.Eth.Miner.Etherbase
+		// Get etherbase address from CLI flag (for PoW mining)
+		var etherbase common.Address
+		if ctx.IsSet(utils.MinerEtherbaseFlag.Name) {
+			etherbaseStr := ctx.String(utils.MinerEtherbaseFlag.Name)
+			if common.IsHexAddress(etherbaseStr) {
+				etherbase = common.HexToAddress(etherbaseStr)
+			}
+		}
+
+		// Fallback to config values if flag not set
+		if etherbase == (common.Address{}) {
+			etherbase = cfg.Eth.Miner.Etherbase
+		}
+		if etherbase == (common.Address{}) {
+			etherbase = cfg.Eth.Miner.PendingFeeRecipient
+		}
+
 		if etherbase == (common.Address{}) {
 			log.Error("Cannot start mining without etherbase address")
 			log.Error("Set the etherbase with --miner.etherbase <address>")
