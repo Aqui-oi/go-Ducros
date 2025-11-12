@@ -473,21 +473,17 @@ func verifyPoWWithCache(cache *C.randomx_cache, sealHash common.Hash, header *ty
 	// and submits to geth with the combined nonce64.
 	//
 	// For verification, geth must reconstruct the EXACT same 43-byte preimage
-	// that xmrig hashed, using the extraNonce4 and minerNonce4.
+	// that xmrig hashed. The headerHash in the blob is the SealHash computed
+	// BEFORE any modifications, so we must use the unmodified header.
 
-	// 1. Extract extraNonce4 from header.Extra[0:4]
-	if len(header.Extra) < 4 {
-		return fmt.Errorf("header.Extra too short for rx-eth-v1: need 4 bytes, got %d", len(header.Extra))
-	}
-	extraNonce4 := binary.LittleEndian.Uint32(header.Extra[0:4])
-
-	// 2. Extract nonce64 from header.Nonce (stored as 8-byte BlockNonce)
+	// 1. Extract extraNonce4 from high 32 bits of nonce64
 	nonce64 := header.Nonce.Uint64()
+	extraNonce4 := uint32(nonce64 >> 32)
 
-	// 3. Extract minerNonce4 from low 32 bits of nonce64
+	// 2. Extract minerNonce4 from low 32 bits of nonce64
 	minerNonce4 := uint32(nonce64 & 0xFFFFFFFF)
 
-	// 4. Reconstruct rx-eth-v1 preimage (43 bytes total)
+	// 3. Reconstruct rx-eth-v1 preimage (43 bytes total)
 	hashInput := make([]byte, 43)
 
 	// Byte 0-31: SealHash (keccak256 of RLP-encoded header without nonce/mixdigest)
@@ -502,16 +498,16 @@ func verifyPoWWithCache(cache *C.randomx_cache, sealHash common.Hash, header *ty
 	// Byte 39-42: minerNonce4 (4 bytes, little-endian)
 	binary.LittleEndian.PutUint32(hashInput[39:43], minerNonce4)
 
-	// 5. Calculate RandomX hash using the reconstructed preimage
+	// 4. Calculate RandomX hash using the reconstructed preimage
 	hash := hashRandomX(vm, hashInput)
 
-	// 6. Verify that the calculated hash matches the MixDigest
+	// 5. Verify that the calculated hash matches the MixDigest
 	if hash != header.MixDigest {
 		return fmt.Errorf("invalid mix digest: computed %s != header %s (extraNonce=%08x minerNonce=%08x)",
 			hash.Hex(), header.MixDigest.Hex(), extraNonce4, minerNonce4)
 	}
 
-	// 7. Verify that the hash satisfies the difficulty requirement
+	// 6. Verify that the hash satisfies the difficulty requirement
 	if !verifyRandomX(hash, header.Difficulty) {
 		return fmt.Errorf("invalid proof-of-work: hash %s does not meet difficulty %s",
 			hash.Hex(), header.Difficulty.String())
@@ -693,11 +689,8 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 				newHeader.Nonce = types.EncodeNonce(nonce64)
 				newHeader.MixDigest = hash
 
-				// Store extraNonce4 in header.Extra[0:4] for verification
-				if len(newHeader.Extra) < 4 {
-					newHeader.Extra = make([]byte, 4)
-				}
-				binary.LittleEndian.PutUint32(newHeader.Extra[0:4], extraNonce4)
+				// No need to store extraNonce in header.Extra
+				// It's already encoded in the nonce (high 32 bits)
 
 				select {
 				case found <- block.WithSeal(newHeader):
@@ -806,21 +799,16 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 			header.Nonce = result.nonce
 			header.MixDigest = result.mixDigest
 
-			// rx-eth-v1: Extract extraNonce from high 32 bits and store in header.Extra
+			// rx-eth-v1: The nonce contains both extraNonce (high 32) and minerNonce (low 32)
 			// The stratum-proxy combines: nonce64 = (extraNonce << 32) | minerNonce
-			// We need to extract extraNonce and store it for verification
+			// No need to modify header.Extra - the nonce contains all the information
 			nonce64 := header.Nonce.Uint64()
 			extraNonce4 := uint32(nonce64 >> 32)
-
-			// Store extraNonce in header.Extra[0:4] for rx-eth-v1 verification
-			if len(header.Extra) < 4 {
-				header.Extra = make([]byte, 4)
-			}
-			binary.LittleEndian.PutUint32(header.Extra[0:4], extraNonce4)
+			minerNonce4 := uint32(nonce64 & 0xFFFFFFFF)
 
 			log.Debug("Remote work submitted", "nonce64", fmt.Sprintf("%016x", nonce64),
 				"extraNonce", fmt.Sprintf("%08x", extraNonce4),
-				"minerNonce", fmt.Sprintf("%08x", uint32(nonce64&0xFFFFFFFF)),
+				"minerNonce", fmt.Sprintf("%08x", minerNonce4),
 				"hash", result.hash.Hex())
 
 			// Verify PoW (use cached chain reference)
