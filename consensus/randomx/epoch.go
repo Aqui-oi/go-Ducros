@@ -17,7 +17,6 @@
 package randomx
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math/big"
 

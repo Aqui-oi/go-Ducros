@@ -99,9 +99,9 @@ type RandomX struct {
 	hashrate metrics.Meter
 
 	// DoS protection
-	recentBlocks *lru.Cache // Cache of recently verified blocks to prevent re-verification attacks
-	failCache    *lru.Cache // Cache of recently failed verifications (hash -> error)
-	verifyMutex  sync.Mutex // Protects verification metrics and throttling
+	recentBlocks *lru.Cache[common.Hash, bool]  // Cache of recently verified blocks to prevent re-verification attacks
+	failCache    *lru.Cache[common.Hash, error] // Cache of recently failed verifications (hash -> error)
+	verifyMutex  sync.Mutex                     // Protects verification metrics and throttling
 
 	// Testing/development modes
 	fakeFail  *uint64        // Block number which fails PoW check even in fake mode
@@ -202,8 +202,8 @@ func New(config *Config) *RandomX {
 	}
 
 	// Initialize DoS protection caches
-	recentBlocks, _ := lru.New(1024) // Cache 1024 recent block hashes
-	failCache, _ := lru.New(256)     // Cache 256 recent failures
+	recentBlocks := lru.NewCache[common.Hash, bool](1024)  // Cache 1024 recent block hashes
+	failCache := lru.NewCache[common.Hash, error](256)     // Cache 256 recent failures
 
 	randomx := &RandomX{
 		config:       config,
