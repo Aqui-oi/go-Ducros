@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -150,14 +151,18 @@ func (randomx *RandomX) Hashrate() float64 {
 func (randomx *RandomX) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 	// In order to ensure backward compatibility, we expose RandomX RPC APIs
 	// to both eth and randomx namespaces.
-	return []rpc.API{
+	apis := []rpc.API{
 		{
 			Namespace: "eth",
 			Service:   &API{randomx},
+			Public:    true,
 		},
 		{
 			Namespace: "randomx",
 			Service:   &API{randomx},
+			Public:    true,
 		},
 	}
+	log.Info("RandomX APIs registered", "count", len(apis), "namespaces", []string{"eth", "randomx"}, "remote", randomx.remote != nil)
+	return apis
 }
