@@ -61,11 +61,15 @@ type Job struct {
 	CreatedAt   time.Time `json:"-"`             // Internal: job creation time
 }
 
-// JobResponse is the minimal job format for login response (xmrig compatible)
+// JobResponse is the complete job format for xmrig RandomX
 type JobResponse struct {
-	JobID  string `json:"job_id"`
-	Blob   string `json:"blob"`
-	Target string `json:"target"`
+	JobID     string `json:"job_id"`
+	Algo      string `json:"algo"`       // "rx/0" for RandomX
+	SeedHash  string `json:"seed_hash"`  // RandomX epoch seed (64 hex)
+	Height    uint64 `json:"height"`     // Block height
+	Blob      string `json:"blob"`       // Block template
+	Target    string `json:"target"`     // Difficulty target (8 hex, LE)
+	CleanJobs bool   `json:"clean_jobs"` // true = discard previous jobs
 }
 
 // Miner represents a connected miner
