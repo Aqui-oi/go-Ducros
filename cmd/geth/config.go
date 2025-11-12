@@ -17,6 +17,9 @@
 package main
 
 import (
+	"runtime"
+
+
 	"bufio"
 	"errors"
 	"fmt"
@@ -48,6 +51,22 @@ import (
 	"github.com/naoina/toml"
 	"github.com/urfave/cli/v2"
 )
+
+// miningStarter is a lifecycle hook that starts mining after the node is initialized
+type miningStarter struct {
+	eth     *eth.Ethereum
+	threads int
+}
+
+func (ms *miningStarter) Start() error {
+	log.Info("Starting mining operation", "threads", ms.threads)
+	return ms.eth.Miner().Start(ms.threads)
+}
+
+func (ms *miningStarter) Stop() error {
+	// Mining will be stopped when the node shuts down
+	return nil
+}
 
 var (
 	dumpConfigCommand = &cli.Command{
@@ -308,6 +327,34 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 			utils.Fatalf("failed to register catalyst service: %v", err)
 		}
 	}
+
+	// Start mining if --mine flag is set and we have an Ethereum backend
+	if ctx.Bool(utils.MiningEnabledFlag.Name) && eth != nil {
+		// Check if we have an etherbase address configured
+		etherbase := cfg.Eth.Miner.Etherbase
+		if etherbase == (common.Address{}) {
+			log.Error("Cannot start mining without etherbase address")
+			log.Error("Set the etherbase with --miner.etherbase <address>")
+		} else {
+			// Get number of mining threads from config
+			threads := runtime.NumCPU()
+			if ctx.IsSet(utils.MinerThreadsFlag.Name) {
+				threads = ctx.Int(utils.MinerThreadsFlag.Name)
+			}
+			if threads <= 0 {
+				threads = 1
+			}
+
+			log.Info("Mining will start after node initialization", "etherbase", etherbase, "threads", threads)
+
+			// Register a goroutine to start mining after the node starts
+			stack.RegisterLifecycle(&miningStarter{
+				eth:     eth,
+				threads: threads,
+			})
+		}
+	}
+
 	return stack
 }
 
