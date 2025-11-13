@@ -121,10 +121,11 @@ type RandomX struct {
 type datasetBuild struct {
 	done chan struct{}
 	err  atomic.Value // error
+	seed common.Hash
 }
 
-func newDatasetBuild() *datasetBuild {
-	b := &datasetBuild{done: make(chan struct{})}
+func newDatasetBuild(seed common.Hash) *datasetBuild {
+	b := &datasetBuild{done: make(chan struct{}), seed: seed}
 	b.err.Store(error(nil))
 	return b
 }
@@ -380,6 +381,9 @@ func (randomx *RandomX) ensureDatasetLocked(flags C.randomx_flags) error {
 
 	datasetFlags := withFullMemory(flags)
 
+	// Reset the disabled flag since we're about to (re)attempt full dataset mode.
+	randomx.datasetDisabled.Store(false)
+
 	if randomx.dataset == nil {
 		log.Info("Allocating RandomX dataset (full mode)")
 		randomx.dataset = C.randomx_alloc_dataset(datasetFlags)
@@ -420,10 +424,18 @@ func (randomx *RandomX) initCache(key common.Hash) error {
 	C.randomx_init_cache(randomx.cache, unsafe.Pointer(keyPtr), C.size_t(len(key)))
 	randomx.cacheKey = key
 
-	if randomx.shouldUseDataset() && !randomx.datasetDisabled.Load() {
-		if err := randomx.ensureDatasetLocked(flags); err != nil {
-			log.Warn("RandomX dataset unavailable, continuing in light mode", "err", err)
-			randomx.datasetDisabled.Store(true)
+	if randomx.shouldUseDataset() {
+		if randomx.datasetDisabled.Load() {
+			if job := randomx.datasetJob; job == nil || job.seed != key {
+				// Retry on new epoch or when no build is running for this seed.
+				randomx.datasetDisabled.Store(false)
+			}
+		}
+		if !randomx.datasetDisabled.Load() {
+			if err := randomx.ensureDatasetLocked(flags); err != nil {
+				log.Warn("RandomX dataset unavailable, continuing in light mode", "err", err)
+				randomx.datasetDisabled.Store(true)
+			}
 		}
 	}
 
@@ -437,9 +449,25 @@ func (randomx *RandomX) startDatasetBuildLocked() {
 		return
 	}
 
-	job := newDatasetBuild()
-	randomx.datasetJob = job
 	seed := randomx.cacheKey
+
+	if existing := randomx.datasetJob; existing != nil {
+		switch {
+		case existing.seed == seed && !existing.ready():
+			// Build already in progress for this seed.
+			return
+		case existing.seed == seed && existing.ready() && existing.error() == nil:
+			// Dataset already initialised for this seed.
+			return
+		case !existing.ready():
+			// A previous build (for a different seed) is still running; let it finish.
+			log.Debug("RandomX dataset build already running", "seed", existing.seed.Hex())
+			return
+		}
+	}
+
+	job := newDatasetBuild(seed)
+	randomx.datasetJob = job
 
 	go randomx.buildDataset(job, dataset, cache, seed)
 }
@@ -460,10 +488,15 @@ func (randomx *RandomX) buildDataset(job *datasetBuild, dataset *C.randomx_datas
 	log.Info("Initializing RandomX dataset in background", "items", uint64(itemCount), "seed", seed.Hex())
 	C.randomx_init_dataset(dataset, cache, 0, itemCount)
 	job.setError(nil)
+	randomx.datasetDisabled.Store(false)
 	log.Info("RandomX dataset ready", "seed", seed.Hex(), "duration", time.Since(start))
 }
 
 func (randomx *RandomX) datasetReadyLocked() *C.randomx_dataset {
+	if randomx.datasetDisabled.Load() {
+		return nil
+	}
+
 	dataset := randomx.dataset
 	if dataset == nil {
 		return nil
