@@ -159,7 +159,7 @@ func TestCalcDifficultyFrontier(t *testing.T) {
 func TestRandomXEngine(t *testing.T) {
 	// Test creating different types of RandomX engines
 	t.Run("New", func(t *testing.T) {
-		engine := New(nil)
+		engine := New(&Config{PowMode: ModeNormal, LightMode: true})
 		if engine == nil {
 			t.Fatal("expected non-nil engine")
 		}

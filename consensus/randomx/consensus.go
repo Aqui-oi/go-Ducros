@@ -402,7 +402,8 @@ func (randomx *RandomX) verifyPoW(chain consensus.ChainHeaderReader, header *typ
 
 	// Verify PoW using the cache (all C operations are in randomx.go)
 	// Cache is protected by RLock for entire duration
-	if err := verifyPoWWithCache(cache, sealHash, header); err != nil {
+	dataset := randomx.dataset
+	if err := verifyPoWWithCache(cache, dataset, sealHash, header); err != nil {
 		verifyErr := fmt.Errorf("proof-of-work verification failed: %w", err)
 		// Cache the failure to prevent re-verification attacks
 		randomx.verifyMutex.Lock()

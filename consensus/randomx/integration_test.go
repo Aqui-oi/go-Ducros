@@ -80,7 +80,7 @@ func newMockChainReader() *mockChainReader {
 
 // TestRandomXEndToEndVerification tests the complete RandomX verification pipeline
 func TestRandomXEndToEndVerification(t *testing.T) {
-	engine := New(&Config{PowMode: ModeNormal})
+	engine := New(&Config{PowMode: ModeNormal, LightMode: true})
 	defer engine.Close()
 
 	chain := newMockChainReader()
@@ -302,7 +302,7 @@ func TestRandomXMiningAndVerification(t *testing.T) {
 
 // BenchmarkRandomXHashing benchmarks RandomX hashing performance
 func BenchmarkRandomXHashing(b *testing.B) {
-	engine := New(&Config{PowMode: ModeNormal})
+	engine := New(&Config{PowMode: ModeNormal, LightMode: true})
 	defer engine.Close()
 
 	seedHash := common.HexToHash("0x1234567890abcdef")
@@ -320,6 +320,6 @@ func BenchmarkRandomXHashing(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		header.Nonce = types.EncodeNonce(uint64(i))
-		_ = verifyPoWWithCache(engine.cache, sealHash, header)
+		_ = verifyPoWWithCache(engine.cache, engine.dataset, sealHash, header)
 	}
 }

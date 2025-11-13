@@ -20,16 +20,16 @@ import (
 
 // TestConsensusVectorEpochRotation tests epoch rotation at 2048 block boundaries
 func TestConsensusVectorEpochRotation(t *testing.T) {
-	engine := New(&Config{PowMode: ModeNormal})
+	engine := New(&Config{PowMode: ModeNormal, LightMode: true})
 	defer engine.Close()
 
 	chain := newMockChainForVectors(t)
 
 	// Test vectors for epoch transitions
 	vectors := []struct {
-		blockNum    uint64
+		blockNum          uint64
 		expectedSeedBlock uint64
-		description string
+		description       string
 	}{
 		{0, 0, "Genesis block"},
 		{63, 0, "Before lag (63 < 64)"},
@@ -74,7 +74,7 @@ func TestConsensusVectorEpochRotation(t *testing.T) {
 
 // TestConsensusVectorInvalidHeaders tests rejection of invalid headers
 func TestConsensusVectorInvalidHeaders(t *testing.T) {
-	engine := New(&Config{PowMode: ModeNormal})
+	engine := New(&Config{PowMode: ModeNormal, LightMode: true})
 	defer engine.Close()
 
 	chain := newMockChainForVectors(t)
@@ -91,9 +91,9 @@ func TestConsensusVectorInvalidHeaders(t *testing.T) {
 
 	// Test vectors for invalid headers
 	vectors := []struct {
-		name        string
+		name         string
 		modifyHeader func(*types.Header)
-		expectError bool
+		expectError  bool
 	}{
 		{
 			name: "Valid header",
@@ -173,7 +173,7 @@ func TestConsensusVectorInvalidHeaders(t *testing.T) {
 
 // TestConsensusVectorSeedConsistency tests that seed remains constant within epoch
 func TestConsensusVectorSeedConsistency(t *testing.T) {
-	engine := New(&Config{PowMode: ModeNormal})
+	engine := New(&Config{PowMode: ModeNormal, LightMode: true})
 	defer engine.Close()
 
 	chain := newMockChainForVectors(t)
@@ -221,7 +221,7 @@ func TestConsensusVectorSeedConsistency(t *testing.T) {
 
 // TestConsensusVectorReorgAcrossEpoch tests reorg handling across epoch boundary
 func TestConsensusVectorReorgAcrossEpoch(t *testing.T) {
-	engine := New(&Config{PowMode: ModeNormal})
+	engine := New(&Config{PowMode: ModeNormal, LightMode: true})
 	defer engine.Close()
 
 	chain := newMockChainForVectors(t)
@@ -251,7 +251,7 @@ func TestConsensusVectorReorgAcrossEpoch(t *testing.T) {
 
 // TestConsensusVectorKeyBlockMissing tests behavior when seed block is missing
 func TestConsensusVectorKeyBlockMissing(t *testing.T) {
-	engine := New(&Config{PowMode: ModeNormal})
+	engine := New(&Config{PowMode: ModeNormal, LightMode: true})
 	defer engine.Close()
 
 	// Create chain WITHOUT seed block 2048
@@ -362,11 +362,11 @@ func (m *mockChainReader) CurrentHeader() *types.Header {
 // TestConsensusVectorLWMAConsistency tests LWMA difficulty calculation consistency
 // between mining (Prepare) and verification (verifyHeader) paths
 func TestConsensusVectorLWMAConsistency(t *testing.T) {
-	engine := New(&Config{PowMode: ModeNormal})
+	engine := New(&Config{PowMode: ModeNormal, LightMode: true})
 	defer engine.Close()
 
 	chain := &mockChainReader{
-		headers: make(map[common.Hash]*types.Header),
+		headers:         make(map[common.Hash]*types.Header),
 		headersByNumber: make(map[uint64]*types.Header),
 		config: &params.ChainConfig{
 			ChainID: big.NewInt(9999),
@@ -473,9 +473,9 @@ func TestConsensusVectorLWMAConsistency(t *testing.T) {
 	t.Run("Burst detection", func(t *testing.T) {
 		// Create fast blocks pattern (burst attack)
 		fastChain := &mockChainReader{
-			headers: make(map[common.Hash]*types.Header),
+			headers:         make(map[common.Hash]*types.Header),
 			headersByNumber: make(map[uint64]*types.Header),
-			config: chain.config,
+			config:          chain.config,
 		}
 
 		var prev *types.Header

@@ -67,6 +67,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -79,16 +80,22 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 )
 
+var (
+	optimalFlagsOnce  sync.Once
+	optimalFlagsValue = C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_HARD_AES)
+)
+
 // RandomX is a consensus engine based on proof-of-work implementing the RandomX
 // algorithm (CPU-friendly, ASIC-resistant, as used by Monero).
 type RandomX struct {
 	config *Config
 
 	// Caching and dataset
-	cache      *C.randomx_cache
-	dataset    *C.randomx_dataset
-	cacheKey   common.Hash
-	cacheMutex sync.RWMutex
+	cache           *C.randomx_cache
+	dataset         *C.randomx_dataset
+	cacheKey        common.Hash
+	cacheMutex      sync.RWMutex
+	datasetDisabled atomic.Bool
 
 	// VM pool for parallel mining
 	vmPool *VMPool
@@ -117,6 +124,11 @@ type Config struct {
 
 	// PowMode defines the mining mode (normal, test, fake, etc.)
 	PowMode Mode
+
+	// LightMode forces RandomX to operate without the 2 GiB dataset.
+	// This keeps memory usage low (useful for tests or constrained
+	// environments) at the cost of significantly reduced hash rate.
+	LightMode bool
 }
 
 // Mode defines the type of PoW mode
@@ -203,8 +215,8 @@ func New(config *Config) *RandomX {
 	}
 
 	// Initialize DoS protection caches
-	recentBlocks := lru.NewCache[common.Hash, bool](1024)  // Cache 1024 recent block hashes
-	failCache := lru.NewCache[common.Hash, error](256)     // Cache 256 recent failures
+	recentBlocks := lru.NewCache[common.Hash, bool](1024) // Cache 1024 recent block hashes
+	failCache := lru.NewCache[common.Hash, error](256)    // Cache 256 recent failures
 
 	randomx := &RandomX{
 		config:       config,
@@ -276,34 +288,66 @@ func NewFullFaker() *RandomX {
 
 // getOptimalFlags returns the best RandomX flags for this system with fallback
 func getOptimalFlags() C.randomx_flags {
-	// Try optimal flags: JIT + HardAES + Large Pages (best performance)
-	optimalFlags := C.randomx_flags(C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES | C.RANDOMX_FLAG_LARGE_PAGES)
+	optimalFlagsOnce.Do(func() {
+		// Try optimal flags: JIT + HardAES + Large Pages (best performance)
+		optimal := C.randomx_flags(C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES | C.RANDOMX_FLAG_LARGE_PAGES)
 
-	// Test if we can allocate with optimal flags
-	testCache := C.randomx_alloc_cache(optimalFlags)
-	if testCache != nil {
-		C.randomx_release_cache(testCache)
-		log.Info("RandomX using optimal flags", "jit", true, "hugepages", true, "hardAES", true)
-		return optimalFlags
-	}
+		testCache := C.randomx_alloc_cache(optimal)
+		if testCache != nil {
+			C.randomx_release_cache(testCache)
+			optimalFlagsValue = optimal
+			log.Info("RandomX using optimal flags", "jit", true, "hugepages", true, "hardAES", true)
+			return
+		}
 
-	// Fallback 1: JIT + HardAES (no huge pages)
-	fallback1 := C.randomx_flags(C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES)
-	testCache = C.randomx_alloc_cache(fallback1)
-	if testCache != nil {
-		C.randomx_release_cache(testCache)
-		log.Warn("RandomX using JIT without huge pages (performance -30%)", "jit", true, "hugepages", false)
-		return fallback1
-	}
+		// Fallback 1: JIT + HardAES (no huge pages)
+		fallback1 := C.randomx_flags(C.RANDOMX_FLAG_JIT | C.RANDOMX_FLAG_HARD_AES)
+		testCache = C.randomx_alloc_cache(fallback1)
+		if testCache != nil {
+			C.randomx_release_cache(testCache)
+			optimalFlagsValue = fallback1
+			log.Warn("RandomX using JIT without huge pages (performance -30%)", "jit", true, "hugepages", false)
+			return
+		}
 
-	// Fallback 2: HardAES only (no JIT, no huge pages) - slowest but stable
-	fallback2 := C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_HARD_AES)
-	log.Warn("RandomX using interpreted mode (performance -10-15×)", "jit", false, "hugepages", false,
-		"hint", "Enable huge pages: sudo sysctl -w vm.nr_hugepages=1280")
-	return fallback2
+		// Fallback 2: HardAES only (no JIT, no huge pages) - slowest but stable
+		optimalFlagsValue = C.randomx_flags(C.RANDOMX_FLAG_DEFAULT | C.RANDOMX_FLAG_HARD_AES)
+		log.Warn("RandomX using interpreted mode (performance -10-15×)", "jit", false, "hugepages", false,
+			"hint", "Enable huge pages: sudo sysctl -w vm.nr_hugepages=1280")
+	})
+	return optimalFlagsValue
 }
 
 // initCache initializes the RandomX cache with the given key
+func (randomx *RandomX) shouldUseDataset() bool {
+	if randomx.config == nil {
+		return true
+	}
+	if randomx.config.LightMode {
+		return false
+	}
+	return randomx.config.PowMode == ModeNormal
+}
+
+func (randomx *RandomX) ensureDatasetLocked(flags C.randomx_flags) error {
+	if randomx.cache == nil {
+		return errors.New("randomx: cache must be initialised before dataset")
+	}
+
+	if randomx.dataset == nil {
+		log.Info("Allocating RandomX dataset (full mode)")
+		randomx.dataset = C.randomx_alloc_dataset(flags)
+		if randomx.dataset == nil {
+			return errors.New("randomx: failed to allocate dataset")
+		}
+	}
+
+	itemCount := C.randomx_dataset_item_count()
+	log.Info("Initializing RandomX dataset", "items", uint64(itemCount))
+	C.randomx_init_dataset(randomx.dataset, randomx.cache, 0, itemCount)
+	return nil
+}
+
 func (randomx *RandomX) initCache(key common.Hash) error {
 	randomx.cacheMutex.Lock()
 	defer randomx.cacheMutex.Unlock()
@@ -331,6 +375,13 @@ func (randomx *RandomX) initCache(key common.Hash) error {
 	keyPtr := (*C.char)(unsafe.Pointer(&key[0]))
 	C.randomx_init_cache(randomx.cache, unsafe.Pointer(keyPtr), C.size_t(len(key)))
 	randomx.cacheKey = key
+
+	if randomx.shouldUseDataset() && !randomx.datasetDisabled.Load() {
+		if err := randomx.ensureDatasetLocked(flags); err != nil {
+			log.Warn("RandomX dataset unavailable, continuing in light mode", "err", err)
+			randomx.datasetDisabled.Store(true)
+		}
+	}
 
 	return nil
 }
@@ -449,14 +500,14 @@ var maxUint256 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 256), common.Big
 // verifyPoWWithCache verifies the proof-of-work using the provided cache
 // This function handles all C-related operations and is called from consensus.go
 // Implements rx-eth-v1 format for compatibility with xmrig RandomX mining
-func verifyPoWWithCache(cache *C.randomx_cache, sealHash common.Hash, header *types.Header) error {
+func verifyPoWWithCache(cache *C.randomx_cache, dataset *C.randomx_dataset, sealHash common.Hash, header *types.Header) error {
 	if cache == nil {
 		return errors.New("randomx cache not initialized")
 	}
 
 	// Create VM for verification with optimal flags (same as cache)
 	flags := getOptimalFlags()
-	vm := C.randomx_create_vm(flags, cache, nil)
+	vm := C.randomx_create_vm(flags, cache, dataset)
 	if vm == nil {
 		return errors.New("failed to create RandomX VM for verification")
 	}
@@ -626,9 +677,10 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 
 	log.Debug("Creating RandomX VM for mining")
 	// Create VM with optimal flags (JIT + hugepages if available)
-	// VM holds a reference to cache, so cache must remain valid for VM lifetime
+	// VM holds a reference to cache/dataset, so they must remain valid for VM lifetime
 	flags := getOptimalFlags()
-	vm := C.randomx_create_vm(flags, cache, nil)
+	dataset := randomx.dataset
+	vm := C.randomx_create_vm(flags, cache, dataset)
 	if vm == nil {
 		log.Error("Failed to create RandomX VM!")
 		return
@@ -903,9 +955,9 @@ func (s *remoteSealer) makeWork(block *types.Block) [4]string {
 	target := new(big.Int).Div(maxUint256, block.Difficulty())
 
 	return [4]string{
-		hash.Hex(),                       // [0] Header hash (SealHash) - what to hash
-		seedHash.Hex(),                   // [1] Seed hash (epoch-based RandomX seed) - RandomX key
+		hash.Hex(),                               // [0] Header hash (SealHash) - what to hash
+		seedHash.Hex(),                           // [1] Seed hash (epoch-based RandomX seed) - RandomX key
 		common.BytesToHash(target.Bytes()).Hex(), // [2] Target boundary (2^256/difficulty)
-		hexutil.EncodeBig(block.Number()), // [3] Block number
+		hexutil.EncodeBig(block.Number()),        // [3] Block number
 	}
 }

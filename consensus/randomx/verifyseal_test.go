@@ -32,7 +32,7 @@ func TestVerifySealFake(t *testing.T) {
 }
 
 func TestSealHash(t *testing.T) {
-	engine := New(nil)
+	engine := New(&Config{PowMode: ModeNormal, LightMode: true})
 	defer engine.Close()
 
 	header := &types.Header{
