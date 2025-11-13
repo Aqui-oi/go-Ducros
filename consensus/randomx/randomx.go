@@ -210,23 +210,24 @@ type hashrate struct {
 
 // sealTask wraps a seal block with relative result channel and chain reader.
 type sealTask struct {
-	block   *types.Block
-	results chan<- *types.Block
-	chain   consensus.ChainHeaderReader
+	block    *types.Block
+	results  chan<- *types.Block
+	chain    consensus.ChainHeaderReader
+	sealHash common.Hash
 }
 
 // remoteSealer wraps the actual sealing work and listens for work requests and
 // returns work solutions.
 type remoteSealer struct {
-	randomx      *RandomX
-	chain        consensus.ChainHeaderReader
-	works        map[common.Hash]*types.Block
-	rates        map[common.Hash]hashrate
-	currentBlock *types.Block
-	currentWork  [4]string
-	notifyCtx    []chan [4]string // Notification channels for new work
-	reqWG        sync.WaitGroup   // Tracks remote sealing threads
-	mutex        sync.Mutex
+	randomx     *RandomX
+	chain       consensus.ChainHeaderReader
+	works       map[common.Hash]*sealTask
+	rates       map[common.Hash]hashrate
+	currentTask *sealTask
+	currentWork [4]string
+	notifyCtx   []chan [4]string // Notification channels for new work
+	reqWG       sync.WaitGroup   // Tracks remote sealing threads
+	mutex       sync.Mutex
 
 	fetchWorkCh  chan *sealWork
 	submitWorkCh chan *mineResult
@@ -235,7 +236,7 @@ type remoteSealer struct {
 	requestExit  chan struct{}
 	exitCh       chan struct{}
 	startCh      chan struct{}
-	cancelCh     chan struct{}
+	cancelCh     chan common.Hash
 	workCh       chan *sealTask
 }
 
@@ -268,7 +269,7 @@ func New(config *Config) *RandomX {
 func startRemoteSealer(randomx *RandomX) *remoteSealer {
 	sealer := &remoteSealer{
 		randomx:      randomx,
-		works:        make(map[common.Hash]*types.Block),
+		works:        make(map[common.Hash]*sealTask),
 		rates:        make(map[common.Hash]hashrate),
 		fetchWorkCh:  make(chan *sealWork),
 		submitWorkCh: make(chan *mineResult),
@@ -277,7 +278,7 @@ func startRemoteSealer(randomx *RandomX) *remoteSealer {
 		requestExit:  make(chan struct{}),
 		exitCh:       make(chan struct{}),
 		startCh:      make(chan struct{}),
-		cancelCh:     make(chan struct{}),
+		cancelCh:     make(chan common.Hash, 16),
 		workCh:       make(chan *sealTask),
 	}
 	go sealer.loop(randomx)
@@ -727,21 +728,25 @@ func (randomx *RandomX) Seal(chain consensus.ChainHeaderReader, block *types.Blo
 		return errors.New("randomx: invalid proof-of-work")
 	}
 
-	// If we have a remote sealer, send work to it
+	// Pre-compute the seal hash for this block. It will be reused both for
+	// local mining and for coordinating remote miners.
+	sealHash := randomx.SealHash(block.Header())
+
+	// If we have a remote sealer, send work to it but continue with the
+	// local mining flow. Remote miners operate concurrently and may submit
+	// solutions via the RPC API while the built-in miner keeps searching.
 	if randomx.remote != nil {
+		task := &sealTask{block: block, results: results, chain: chain, sealHash: sealHash}
 		select {
-		case randomx.remote.workCh <- &sealTask{block: block, results: results, chain: chain}:
+		case randomx.remote.workCh <- task:
 			log.Info("Work sent to remote sealer", "block", block.NumberU64())
 		case <-stop:
-			log.Info("Mining stopped before sending work")
+			log.Info("Mining stopped before sending work to remote sealer")
 			return nil
 		}
-		// Work sent to remote, wait for stop signal
-		<-stop
-		return nil
 	}
 
-	// No remote sealer, do local mining
+	// Perform local mining
 	header := block.Header()
 
 	// Calculate the RandomX seed for this block's epoch
@@ -774,6 +779,9 @@ func (randomx *RandomX) Seal(chain consensus.ChainHeaderReader, block *types.Blo
 	select {
 	case result := <-found:
 		log.Info("Solution found!", "block", result.NumberU64())
+		if randomx.remote != nil {
+			randomx.remote.cancel(sealHash)
+		}
 		// Solution found, push to results
 		select {
 		case results <- result:
@@ -785,6 +793,9 @@ func (randomx *RandomX) Seal(chain consensus.ChainHeaderReader, block *types.Blo
 		log.Info("Mining aborted via stop channel")
 		// Mining aborted externally
 		close(abort)
+		if randomx.remote != nil {
+			randomx.remote.cancel(sealHash)
+		}
 	}
 
 	log.Debug("Seal function returning")
@@ -932,26 +943,26 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 		case <-s.startCh:
 			// Start notification, do nothing
 		case work := <-s.workCh:
-			// New work arrived, update current work and notify all subscribers
+			if work == nil || work.block == nil {
+				continue
+			}
+
 			s.mutex.Lock()
 
-			if s.currentBlock != nil && work.block.ParentHash() != s.currentBlock.ParentHash() {
-				// New work is stale, ignore
+			if s.currentTask != nil && work.block.ParentHash() != s.currentTask.block.ParentHash() {
 				s.mutex.Unlock()
 				continue
 			}
 
-			// Update chain reference (for seed calculation)
 			if work.chain != nil {
 				s.chain = work.chain
 			}
 
-			// Update current work
-			s.currentBlock = work.block
+			s.currentTask = work
 			s.currentWork = s.makeWork(work.block)
-			s.works[work.block.Hash()] = work.block
+			s.currentWork[0] = work.sealHash.Hex()
+			s.works[work.sealHash] = work
 
-			// Notify all listeners
 			for _, ch := range s.notifyCtx {
 				select {
 				case ch <- s.currentWork:
@@ -963,7 +974,7 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 		case req := <-s.fetchWorkCh:
 			// Fetch current work
 			s.mutex.Lock()
-			if s.currentBlock == nil {
+			if s.currentTask == nil {
 				s.mutex.Unlock()
 				req.errc <- errNoMiningWork
 				continue
@@ -972,26 +983,34 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 			s.mutex.Unlock()
 
 		case result := <-s.submitWorkCh:
-			// Submit work result
 			s.mutex.Lock()
 
-			// Make sure the work submitted is present
-			block := s.works[result.hash]
-			if block == nil {
+			task := s.works[result.hash]
+			if task == nil {
 				s.mutex.Unlock()
 				log.Warn("Work submitted but not found", "hash", result.hash)
 				result.errc <- errInvalidSealResult
 				continue
 			}
 
-			// Verify the submitted solution
+			block := task.block
+			resultsCh := task.results
+			chain := task.chain
+			if chain == nil {
+				chain = s.chain
+			}
+			s.mutex.Unlock()
+
+			if chain == nil {
+				log.Error("Chain reference not available for PoW verification")
+				result.errc <- errInvalidSealResult
+				continue
+			}
+
 			header := types.CopyHeader(block.Header())
 			header.Nonce = result.nonce
 			header.MixDigest = result.mixDigest
 
-			// rx-eth-v1: The nonce contains both extraNonce (high 32) and minerNonce (low 32)
-			// The stratum-proxy combines: nonce64 = (extraNonce << 32) | minerNonce
-			// No need to modify header.Extra - the nonce contains all the information
 			nonce64 := header.Nonce.Uint64()
 			extraNonce4 := uint32(nonce64 >> 32)
 			minerNonce4 := uint32(nonce64 & 0xFFFFFFFF)
@@ -1001,28 +1020,30 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 				"minerNonce", fmt.Sprintf("%08x", minerNonce4),
 				"hash", result.hash.Hex())
 
-			// Verify PoW (use cached chain reference)
-			if s.chain == nil {
-				s.mutex.Unlock()
-				log.Error("Chain reference not available for PoW verification")
-				result.errc <- errInvalidSealResult
-				continue
-			}
-			if err := randomx.verifyPoW(s.chain, header); err != nil {
-				s.mutex.Unlock()
+			if err := randomx.verifyPoW(chain, header); err != nil {
 				log.Warn("Invalid proof-of-work submitted", "err", err)
 				result.errc <- errInvalidSealResult
 				continue
 			}
 
-			// Solution is valid, seal the block
-			select {
-			case s.workCh <- &sealTask{block: block.WithSeal(header), results: nil}:
-			default:
+			sealed := block.WithSeal(header)
+
+			s.mutex.Lock()
+			delete(s.works, result.hash)
+			if s.currentTask != nil && s.currentTask.sealHash == result.hash {
+				s.currentTask = nil
+				s.currentWork = [4]string{}
+			}
+			s.mutex.Unlock()
+
+			if resultsCh != nil {
+				select {
+				case resultsCh <- sealed:
+				default:
+					log.Warn("Remote result channel full, dropping sealed block", "hash", result.hash)
+				}
 			}
 
-			delete(s.works, result.hash)
-			s.mutex.Unlock()
 			result.errc <- nil
 
 		case req := <-s.submitRateCh:
@@ -1052,12 +1073,22 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 			s.mutex.Unlock()
 			req <- total
 
+		case hash := <-s.cancelCh:
+			s.mutex.Lock()
+			delete(s.works, hash)
+			if s.currentTask != nil && s.currentTask.sealHash == hash {
+				s.currentTask = nil
+				s.currentWork = [4]string{}
+			}
+			s.mutex.Unlock()
+
 		case <-ticker.C:
 			// Clean up stale work
 			s.mutex.Lock()
-			if s.currentBlock != nil && len(s.works) > 0 {
-				for hash, block := range s.works {
-					if block.NumberU64()+10 < s.currentBlock.NumberU64() {
+			if s.currentTask != nil && len(s.works) > 0 {
+				currentNumber := s.currentTask.block.NumberU64()
+				for hash, task := range s.works {
+					if task.block.NumberU64()+10 < currentNumber {
 						delete(s.works, hash)
 					}
 				}
@@ -1067,6 +1098,13 @@ func (s *remoteSealer) loop(randomx *RandomX) {
 		case <-s.requestExit:
 			return
 		}
+	}
+}
+
+func (s *remoteSealer) cancel(hash common.Hash) {
+	select {
+	case s.cancelCh <- hash:
+	default:
 	}
 }
 
