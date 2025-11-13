@@ -96,6 +96,7 @@ type RandomX struct {
 	cacheKey        common.Hash
 	cacheMutex      sync.RWMutex
 	datasetDisabled atomic.Bool
+	datasetJob      *datasetBuild
 
 	// VM pool for parallel mining
 	vmPool *VMPool
@@ -115,6 +116,37 @@ type RandomX struct {
 	fakeFail  *uint64        // Block number which fails PoW check even in fake mode
 	fakeDelay *time.Duration // Time delay to sleep for before returning from verify
 	fakeFull  bool           // Accepts everything as valid
+}
+
+type datasetBuild struct {
+	done chan struct{}
+	err  atomic.Value // error
+}
+
+func newDatasetBuild() *datasetBuild {
+	b := &datasetBuild{done: make(chan struct{})}
+	b.err.Store(error(nil))
+	return b
+}
+
+func (b *datasetBuild) setError(err error) {
+	b.err.Store(err)
+}
+
+func (b *datasetBuild) error() error {
+	if v := b.err.Load(); v != nil {
+		return v.(error)
+	}
+	return nil
+}
+
+func (b *datasetBuild) ready() bool {
+	select {
+	case <-b.done:
+		return true
+	default:
+		return false
+	}
 }
 
 // Config are the configuration parameters of the RandomX consensus engine.
@@ -318,6 +350,18 @@ func getOptimalFlags() C.randomx_flags {
 	return optimalFlagsValue
 }
 
+func withFullMemory(flags C.randomx_flags) C.randomx_flags {
+	return flags | C.randomx_flags(C.RANDOMX_FLAG_FULL_MEM)
+}
+
+func flagsForDataset(dataset *C.randomx_dataset) C.randomx_flags {
+	flags := getOptimalFlags()
+	if dataset != nil {
+		flags = withFullMemory(flags)
+	}
+	return flags
+}
+
 // initCache initializes the RandomX cache with the given key
 func (randomx *RandomX) shouldUseDataset() bool {
 	if randomx.config == nil {
@@ -334,17 +378,17 @@ func (randomx *RandomX) ensureDatasetLocked(flags C.randomx_flags) error {
 		return errors.New("randomx: cache must be initialised before dataset")
 	}
 
+	datasetFlags := withFullMemory(flags)
+
 	if randomx.dataset == nil {
 		log.Info("Allocating RandomX dataset (full mode)")
-		randomx.dataset = C.randomx_alloc_dataset(flags)
+		randomx.dataset = C.randomx_alloc_dataset(datasetFlags)
 		if randomx.dataset == nil {
 			return errors.New("randomx: failed to allocate dataset")
 		}
 	}
 
-	itemCount := C.randomx_dataset_item_count()
-	log.Info("Initializing RandomX dataset", "items", uint64(itemCount))
-	C.randomx_init_dataset(randomx.dataset, randomx.cache, 0, itemCount)
+	randomx.startDatasetBuildLocked()
 	return nil
 }
 
@@ -384,6 +428,63 @@ func (randomx *RandomX) initCache(key common.Hash) error {
 	}
 
 	return nil
+}
+
+func (randomx *RandomX) startDatasetBuildLocked() {
+	dataset := randomx.dataset
+	cache := randomx.cache
+	if dataset == nil || cache == nil {
+		return
+	}
+
+	job := newDatasetBuild()
+	randomx.datasetJob = job
+	seed := randomx.cacheKey
+
+	go randomx.buildDataset(job, dataset, cache, seed)
+}
+
+func (randomx *RandomX) buildDataset(job *datasetBuild, dataset *C.randomx_dataset, cache *C.randomx_cache, seed common.Hash) {
+	defer close(job.done)
+
+	if dataset == nil || cache == nil {
+		err := errors.New("randomx: dataset build prerequisites missing")
+		job.setError(err)
+		randomx.datasetDisabled.Store(true)
+		log.Warn("RandomX dataset build aborted", "err", err)
+		return
+	}
+
+	itemCount := C.randomx_dataset_item_count()
+	start := time.Now()
+	log.Info("Initializing RandomX dataset in background", "items", uint64(itemCount), "seed", seed.Hex())
+	C.randomx_init_dataset(dataset, cache, 0, itemCount)
+	job.setError(nil)
+	log.Info("RandomX dataset ready", "seed", seed.Hex(), "duration", time.Since(start))
+}
+
+func (randomx *RandomX) datasetReadyLocked() *C.randomx_dataset {
+	dataset := randomx.dataset
+	if dataset == nil {
+		return nil
+	}
+
+	job := randomx.datasetJob
+	if job == nil {
+		return dataset
+	}
+
+	if !job.ready() {
+		return nil
+	}
+
+	if err := job.error(); err != nil {
+		log.Warn("RandomX dataset disabled after build failure", "err", err)
+		randomx.datasetDisabled.Store(true)
+		return nil
+	}
+
+	return dataset
 }
 
 // NewVMPool creates a new pool of RandomX VMs for parallel mining
@@ -506,7 +607,7 @@ func verifyPoWWithCache(cache *C.randomx_cache, dataset *C.randomx_dataset, seal
 	}
 
 	// Create VM for verification with optimal flags (same as cache)
-	flags := getOptimalFlags()
+	flags := flagsForDataset(dataset)
 	vm := C.randomx_create_vm(flags, cache, dataset)
 	if vm == nil {
 		return errors.New("failed to create RandomX VM for verification")
@@ -675,11 +776,15 @@ func (randomx *RandomX) mine(block *types.Block, found chan<- *types.Block, abor
 		return
 	}
 
+	dataset := randomx.datasetReadyLocked()
+	if dataset == nil {
+		log.Debug("RandomX dataset not ready, mining in light mode")
+	}
+
 	log.Debug("Creating RandomX VM for mining")
 	// Create VM with optimal flags (JIT + hugepages if available)
 	// VM holds a reference to cache/dataset, so they must remain valid for VM lifetime
-	flags := getOptimalFlags()
-	dataset := randomx.dataset
+	flags := flagsForDataset(dataset)
 	vm := C.randomx_create_vm(flags, cache, dataset)
 	if vm == nil {
 		log.Error("Failed to create RandomX VM!")
