@@ -519,11 +519,29 @@ func (randomx *RandomX) buildDataset(job *datasetBuild, dataset *C.randomx_datas
 	// Initialize dataset in chunks to avoid threading conflicts with GOMAXPROCS=1
 	// This prevents segfaults when RandomX C library tries to spawn multiple threads
 	go func() {
+		// CRITICAL: Lock this goroutine to its OS thread
+		// The RandomX C library creates pthreads internally for parallel dataset init.
+		// Without this, Go's scheduler might move the goroutine between OS threads,
+		// causing the C library's threads to lose their execution context, leading to SIGSEGV.
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+
 		defer func() {
 			if r := recover(); r != nil {
 				log.Error("RandomX dataset build panic", "error", r)
+				job.setError(fmt.Errorf("panic during dataset build: %v", r))
+				randomx.datasetDisabled.Store(true)
 			}
 		}()
+
+		// Validate pointers before calling C functions
+		if dataset == nil || cache == nil {
+			err := errors.New("randomx: dataset or cache pointer became nil")
+			job.setError(err)
+			randomx.datasetDisabled.Store(true)
+			log.Error("RandomX dataset build failed", "err", err)
+			return
+		}
 
 		// Use single-threaded initialization to avoid conflicts with GOMAXPROCS=1
 		// Initialize in one chunk with proper thread safety
@@ -537,6 +555,18 @@ func (randomx *RandomX) buildDataset(job *datasetBuild, dataset *C.randomx_datas
 				// Last chunk gets remainder
 				count = itemCount - startItem
 			}
+
+			// Final validation before C call
+			if dataset == nil || cache == nil {
+				err := errors.New("randomx: pointers invalidated during initialization")
+				job.setError(err)
+				randomx.datasetDisabled.Store(true)
+				log.Error("RandomX dataset build aborted", "err", err)
+				return
+			}
+
+			// This C call internally creates multiple pthreads for parallel initialization
+			// It's safe now because we're locked to an OS thread
 			C.randomx_init_dataset(dataset, cache, startItem, count)
 		}
 		close(buildDone)
