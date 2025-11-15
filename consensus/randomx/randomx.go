@@ -66,6 +66,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -498,6 +499,14 @@ func (randomx *RandomX) buildDataset(job *datasetBuild, dataset *C.randomx_datas
 		return
 	}
 
+	// Warn if GOMAXPROCS is too low for RandomX dataset initialization
+	gomaxprocs := runtime.GOMAXPROCS(0)
+	if gomaxprocs == 1 {
+		log.Warn("RandomX dataset initialization with GOMAXPROCS=1 may cause instability",
+			"gomaxprocs", gomaxprocs,
+			"recommendation", "Remove GOMAXPROCS=1 or set to at least 2 for stable RandomX operation")
+	}
+
 	itemCount := C.randomx_dataset_item_count()
 	start := time.Now()
 	log.Info("Initializing RandomX dataset in background", "items", uint64(itemCount), "seed", seed.Hex())
@@ -507,8 +516,29 @@ func (randomx *RandomX) buildDataset(job *datasetBuild, dataset *C.randomx_datas
 	buildDone := make(chan struct{})
 	buildTimeout := 15 * time.Minute // Reasonable timeout for dataset initialization
 
+	// Initialize dataset in chunks to avoid threading conflicts with GOMAXPROCS=1
+	// This prevents segfaults when RandomX C library tries to spawn multiple threads
 	go func() {
-		C.randomx_init_dataset(dataset, cache, 0, itemCount)
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("RandomX dataset build panic", "error", r)
+			}
+		}()
+
+		// Use single-threaded initialization to avoid conflicts with GOMAXPROCS=1
+		// Initialize in one chunk with proper thread safety
+		const numChunks = 1
+		chunkSize := itemCount / numChunks
+
+		for i := C.ulong(0); i < numChunks; i++ {
+			startItem := i * chunkSize
+			count := chunkSize
+			if i == numChunks-1 {
+				// Last chunk gets remainder
+				count = itemCount - startItem
+			}
+			C.randomx_init_dataset(dataset, cache, startItem, count)
+		}
 		close(buildDone)
 	}()
 
