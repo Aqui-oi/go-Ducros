@@ -12,14 +12,14 @@ Avec `LWMAMinDifficulty = 1`, les blocs sont minés trop rapidement (plusieurs p
 ### Modification de la difficulté minimale
 
 **Fichier :** `consensus/randomx/lwma.go`
-**Ligne 18 :** `LWMAMinDifficulty = 100000` (augmenté de 1 → 100000)
+**Ligne 18 :** `LWMAMinDifficulty = 30000` (augmenté de 1 → 30000)
 
 ### Valeurs de difficulté recommandées
 
 | Contexte | Difficulté minimale | Temps de bloc estimé |
 |----------|---------------------|----------------------|
 | **Dev local** (1 CPU) | 10,000 - 50,000 | 1-5 secondes |
-| **Testnet** (multi-node) | 100,000 - 500,000 | 5-30 secondes |
+| **Testnet** (multi-node) | 30,000 - 100,000 | 3-10 secondes |
 | **Production** | 1,000,000+ | Selon hashrate réseau |
 
 ### Comment ajuster la difficulté
@@ -28,7 +28,7 @@ Avec `LWMAMinDifficulty = 1`, les blocs sont minés trop rapidement (plusieurs p
 
 ```go
 // consensus/randomx/lwma.go ligne 18
-LWMAMinDifficulty = 100000  // Ajustez cette valeur
+LWMAMinDifficulty = 30000  // Ajustez cette valeur
 ```
 
 #### Option 2: Modifier le genesis.json
@@ -39,7 +39,7 @@ LWMAMinDifficulty = 100000  // Ajustez cette valeur
     "chainId": 33669,
     "randomx": {}
   },
-  "difficulty": "0x186A0",  // 100000 en hexadécimal
+  "difficulty": "0x7530",  // 30000 en hexadécimal
   ...
 }
 ```
@@ -47,6 +47,7 @@ LWMAMinDifficulty = 100000  // Ajustez cette valeur
 **Conversions hexadécimales utiles :**
 - 1,000 = `0x3E8`
 - 10,000 = `0x2710`
+- 30,000 = `0x7530`
 - 100,000 = `0x186A0`
 - 1,000,000 = `0xF4240`
 - 10,000,000 = `0x989680`

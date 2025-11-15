@@ -31,7 +31,7 @@ go build -o stratum-proxy .
 ./stratum-proxy \
   --stratum 0.0.0.0:3333 \
   --geth http://localhost:8545 \
-  --diff 100000 \
+  --diff 30000 \
   --algo rx/0 \
   -v
 ```
@@ -39,7 +39,7 @@ go build -o stratum-proxy .
 **Paramètres importants :**
 - `--stratum 0.0.0.0:3333` : Écoute sur toutes les interfaces, port 3333
 - `--geth http://localhost:8545` : URL du RPC geth
-- `--diff 100000` : Difficulté initiale (correspond à votre nouveau LWMAMinDifficulty)
+- `--diff 30000` : Difficulté initiale (correspond à votre nouveau LWMAMinDifficulty)
 - `--algo rx/0` : Algorithme RandomX standard
 - `-v` : Mode verbose pour voir tous les logs
 
@@ -58,7 +58,7 @@ chmod +x deploy-stratum-proxy.sh
 Le script vous posera des questions :
 - Geth RPC URL : `http://localhost:8545` (Enter)
 - Stratum listen address : `0.0.0.0:3333` (Enter)
-- Initial difficulty : `100000` (notre nouvelle difficulté)
+- Initial difficulty : `30000` (notre nouvelle difficulté)
 - Pool mode : `n` (pour commencer)
 - Verbose logging : `y` (recommandé)
 - Install as systemd service : `y` (si vous voulez un service permanent)
@@ -84,7 +84,7 @@ fi
 ./stratum-proxy \
   --stratum 0.0.0.0:3333 \
   --geth http://localhost:8545 \
-  --diff 100000 \
+  --diff 30000 \
   --algo rx/0 \
   --vardiff-target 30.0 \
   --vardiff-window 10 \
@@ -106,7 +106,7 @@ Une fois lancé, vous devriez voir :
 🚀 Starting Stratum proxy on 0.0.0.0:3333
 🔗 Connected to Geth: http://localhost:8545
 ⛏️  Algorithm: rx/0
-💎 Initial difficulty: 100000
+💎 Initial difficulty: 30000
 ⚙️  VarDiff: target 30.0s, window 10 shares
 🛡️  Ban system: max 10 invalid shares
 ✅ Server started successfully
@@ -151,14 +151,14 @@ Vous devriez voir sur le **stratum-proxy** :
 ✅ Miner logged in: 0x25fFA18Fb7E35E0a3272020305f4BEa0B770A7F2 (XMRig/6.24.0)
 📤 Sending job to 77.192.84.136
 📩 Share received from 77.192.84.136
-✅ Share accepted! difficulty=100000
+✅ Share accepted! difficulty=30000
 ```
 
 Et sur **xmrig** :
 
 ```
-[2025-11-15 ...] net      new job from 92.222.10.107:3333 diff 100000
-[2025-11-15 ...] cpu      accepted (1/0) diff 100000
+[2025-11-15 ...] net      new job from 92.222.10.107:3333 diff 30000
+[2025-11-15 ...] cpu      accepted (1/0) diff 30000
 [2025-11-15 ...] miner    speed 10s/60s/15m 5000.0 5000.0 n/a H/s max 5500.0 H/s
 ```
 
@@ -246,7 +246,7 @@ Si vous voulez faire un pool public :
 ./stratum-proxy \
   --stratum 0.0.0.0:3333 \
   --geth http://localhost:8545 \
-  --diff 100000 \
+  --diff 30000 \
   --pool-addr 0xVOTRE_ADRESSE_POOL \
   --pool-fee 1.0 \
   --max-connections 1000 \
@@ -257,7 +257,7 @@ Si vous voulez faire un pool public :
 
 ```bash
 ./stratum-proxy \
-  --diff 100000 \
+  --diff 30000 \
   --vardiff-target 30.0 \   # Cible : 1 share toutes les 30 secondes
   --vardiff-window 10       # Fenêtre de 10 shares pour ajuster
 ```
@@ -284,7 +284,7 @@ Sur le VPS, une seule commande pour tout démarrer :
 ```bash
 cd ~/go-Ducros/stratum-proxy && \
 go build -o stratum-proxy . && \
-./stratum-proxy --stratum 0.0.0.0:3333 --geth http://localhost:8545 --diff 100000 --algo rx/0 -v
+./stratum-proxy --stratum 0.0.0.0:3333 --geth http://localhost:8545 --diff 30000 --algo rx/0 -v
 ```
 
 Voilà ! Le stratum devrait maintenant distribuer le travail de geth à vos mineurs xmrig. 🚀

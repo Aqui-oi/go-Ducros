@@ -65,7 +65,7 @@ fi
 # Configuration par défaut
 STRATUM_ADDR="${STRATUM_ADDR:-0.0.0.0:3333}"
 GETH_RPC="${GETH_RPC:-http://localhost:8545}"
-INITIAL_DIFF="${INITIAL_DIFF:-100000}"
+INITIAL_DIFF="${INITIAL_DIFF:-30000}"
 ALGO="${ALGO:-rx/0}"
 
 echo ""
