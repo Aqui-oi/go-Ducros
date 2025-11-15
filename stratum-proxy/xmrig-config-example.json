@@ -1,0 +1,46 @@
+{
+    "autosave": true,
+    "cpu": true,
+    "opencl": false,
+    "cuda": false,
+    "pools": [
+        {
+            "algo": "rx/0",
+            "coin": "monero",
+            "url": "YOUR_PROXY_IP:3333",
+            "user": "YOUR_DUCROS_WALLET_ADDRESS",
+            "pass": "worker1",
+            "keepalive": true,
+            "nicehash": false,
+            "tls": false,
+            "tls-fingerprint": null,
+            "daemon": false
+        }
+    ],
+    "randomx": {
+        "init": -1,
+        "mode": "light",
+        "1gb-pages": false,
+        "rdmsr": true,
+        "wrmsr": true,
+        "numa": true
+    },
+    "cpu": {
+        "enabled": true,
+        "huge-pages": true,
+        "hw-aes": null,
+        "priority": null,
+        "asm": true,
+        "max-threads-hint": 100
+    },
+    "log-file": "xmrig.log",
+    "donate-level": 0,
+    "print-time": 60,
+    "retries": 5,
+    "retry-pause": 5,
+    "user-agent": null,
+    "verbose": 0,
+    "watch": true,
+    "pause-on-battery": false,
+    "pause-on-active": false
+}

@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/internal/flags"
@@ -48,6 +49,22 @@ import (
 	"github.com/naoina/toml"
 	"github.com/urfave/cli/v2"
 )
+
+// miningStarter is a lifecycle hook that starts mining after the node is initialized
+type miningStarter struct {
+	eth     *eth.Ethereum
+	threads int
+}
+
+func (ms *miningStarter) Start() error {
+	log.Info("Starting mining operation", "threads", ms.threads)
+	return ms.eth.Miner().Start(ms.threads)
+}
+
+func (ms *miningStarter) Stop() error {
+	// Mining will be stopped when the node shuts down
+	return nil
+}
 
 var (
 	dumpConfigCommand = &cli.Command{
@@ -308,6 +325,47 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 			utils.Fatalf("failed to register catalyst service: %v", err)
 		}
 	}
+
+	// Start mining if --mine flag is set and we have an Ethereum backend
+	if ctx.Bool(utils.MiningEnabledFlag.Name) && eth != nil {
+		// Get etherbase address from CLI flag (for PoW mining)
+		var etherbase common.Address
+		if ctx.IsSet(utils.MinerEtherbaseFlag.Name) {
+			etherbaseStr := ctx.String(utils.MinerEtherbaseFlag.Name)
+			if common.IsHexAddress(etherbaseStr) {
+				etherbase = common.HexToAddress(etherbaseStr)
+			}
+		}
+
+		// Fallback to config values if flag not set
+		if etherbase == (common.Address{}) {
+			etherbase = cfg.Eth.Miner.Etherbase
+		}
+		if etherbase == (common.Address{}) {
+			etherbase = cfg.Eth.Miner.PendingFeeRecipient
+		}
+
+		if etherbase == (common.Address{}) {
+			log.Error("Cannot start mining without etherbase address")
+			log.Error("Set the etherbase with --miner.etherbase <address>")
+		} else {
+			// Use all available CPUs for mining by default
+			// This can be controlled by GOMAXPROCS environment variable
+			threads := runtime.NumCPU()
+			if threads <= 0 {
+				threads = 1
+			}
+
+			log.Info("Mining will start after node initialization", "etherbase", etherbase, "threads", threads)
+
+			// Register a lifecycle hook to start mining after the node starts
+			stack.RegisterLifecycle(&miningStarter{
+				eth:     eth,
+				threads: threads,
+			})
+		}
+	}
+
 	return stack
 }
 

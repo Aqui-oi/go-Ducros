@@ -18,7 +18,6 @@
 package ethconfig
 
 import (
-	"errors"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -26,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/randomx"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/history"
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
@@ -192,16 +192,51 @@ type Config struct {
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.
-// Clique is allowed for now to live standalone, but ethash is forbidden and can
-// only exist on already merged networks.
+// Supports RandomX (PoW), Clique (PoA), and Beacon (PoS) consensus engines.
 func CreateConsensusEngine(config *params.ChainConfig, db ethdb.Database) (consensus.Engine, error) {
-	if config.TerminalTotalDifficulty == nil {
-		log.Error("Geth only supports PoS networks. Please transition legacy networks using Geth v1.13.x.")
-		return nil, errors.New("'terminalTotalDifficulty' is not set in genesis block")
+	log.Info("Creating consensus engine", "randomx", config.RandomX != nil, "clique", config.Clique != nil, "ethash", config.Ethash != nil, "ttd", config.TerminalTotalDifficulty != nil)
+
+	// RandomX PoW consensus (CPU-friendly mining)
+	if config.RandomX != nil {
+		log.Info("Using RandomX PoW consensus engine")
+		// Real RandomX engine with C bindings
+		return randomx.New(nil), nil
 	}
+
+	// Legacy PoS check (commented out to allow PoW chains)
+	/*
+		if config.TerminalTotalDifficulty == nil {
+			log.Error("Geth only supports PoS networks. Please transition legacy networks using Geth v1.13.x.")
+			return nil, errors.New("'terminalTotalDifficulty' is not set in genesis block")
+		}
+	*/
+
 	// Wrap previously supported consensus engines into their post-merge counterpart
 	if config.Clique != nil {
-		return beacon.New(clique.New(config.Clique, db)), nil
+		log.Info("Using Clique PoA consensus engine")
+		// Clique PoA - can run standalone or wrapped in Beacon
+		if config.TerminalTotalDifficulty != nil {
+			return beacon.New(clique.New(config.Clique, db)), nil
+		}
+		return clique.New(config.Clique, db), nil
 	}
-	return beacon.New(ethash.NewFaker()), nil
+
+	// Ethash PoW - deprecated, only for compatibility
+	if config.Ethash != nil {
+		log.Warn("Ethash PoW is deprecated. Consider using RandomX for CPU-friendly mining.")
+		if config.TerminalTotalDifficulty != nil {
+			return beacon.New(ethash.NewFaker()), nil
+		}
+		return ethash.NewFaker(), nil
+	}
+
+	// Default: Beacon PoS (if TerminalTotalDifficulty is set)
+	if config.TerminalTotalDifficulty != nil {
+		log.Info("Using Beacon PoS consensus engine (default)")
+		return beacon.New(ethash.NewFaker()), nil
+	}
+
+	// Fallback: fake engine for testing
+	log.Warn("No consensus engine specified, using fake engine")
+	return ethash.NewFaker(), nil
 }

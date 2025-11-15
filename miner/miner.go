@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -74,6 +75,12 @@ type Miner struct {
 	chain       *core.BlockChain
 	pending     *pending
 	pendingMu   sync.Mutex // Lock protects the pending block
+
+	// PoW mining fields
+	mining    bool           // Mining status
+	miningMu  sync.RWMutex   // Lock for mining status
+	mineStop  chan struct{}  // Stop channel for mining
+	threads   int            // Number of mining threads
 }
 
 // New creates a new miner with provided config.
@@ -170,4 +177,149 @@ func (miner *Miner) getPending() *newPayloadResult {
 	}
 	miner.pending.update(header.Hash(), ret)
 	return ret
+}
+
+// Start starts the mining process with the given number of threads.
+// This is for PoW consensus engines only.
+func (miner *Miner) Start(threads int) error {
+	miner.miningMu.Lock()
+	defer miner.miningMu.Unlock()
+
+	if miner.mining {
+		return fmt.Errorf("mining is already running")
+	}
+
+	if threads <= 0 {
+		threads = 1
+	}
+
+	miner.mining = true
+	miner.threads = threads
+	miner.mineStop = make(chan struct{})
+
+	// Start mining goroutines
+	for i := 0; i < threads; i++ {
+		go miner.mineLoop(miner.mineStop)
+	}
+
+	return nil
+}
+
+// Stop stops the mining process.
+func (miner *Miner) Stop() error {
+	miner.miningMu.Lock()
+	defer miner.miningMu.Unlock()
+
+	if !miner.mining {
+		return fmt.Errorf("mining is not running")
+	}
+
+	close(miner.mineStop)
+	miner.mining = false
+	return nil
+}
+
+// Mining returns whether the miner is currently mining.
+func (miner *Miner) Mining() bool {
+	miner.miningMu.RLock()
+	defer miner.miningMu.RUnlock()
+	return miner.mining
+}
+
+// HashRate returns the current hash rate (always returns 0 for now, can be improved later).
+func (miner *Miner) HashRate() uint64 {
+	// TODO: Implement actual hashrate calculation
+	return 0
+}
+
+// mineLoop is the main mining loop that continuously tries to mine blocks.
+func (miner *Miner) mineLoop(stop <-chan struct{}) {
+	log.Info("Mining loop started")
+	for {
+		select {
+		case <-stop:
+			log.Info("Mining loop stopped")
+			return
+		default:
+			// Get the current head block
+			header := miner.chain.CurrentBlock()
+			if header == nil {
+				log.Warn("Current block header is nil, waiting...")
+				time.Sleep(time.Second)
+				continue
+			}
+
+			log.Info("Mining new block", "parent", header.Number.Uint64(), "difficulty", header.Difficulty)
+
+			// Create a new block to mine
+			timestamp := uint64(time.Now().Unix())
+			parent := miner.chain.GetBlock(header.Hash(), header.Number.Uint64())
+			if parent == nil {
+				log.Warn("Parent block is nil, waiting...")
+				time.Sleep(time.Second)
+				continue
+			}
+
+			// Build a new block
+			coinbase := miner.config.PendingFeeRecipient
+			if coinbase == (common.Address{}) {
+				coinbase = miner.config.Etherbase
+			}
+
+			log.Debug("Generating work", "coinbase", coinbase, "timestamp", timestamp)
+
+			// Generate work
+			result := miner.generateWork(&generateParams{
+				timestamp:   timestamp,
+				forceTime:   true,
+				parentHash:  parent.Hash(),
+				coinbase:    coinbase,
+				random:      common.Hash{},
+				withdrawals: nil,
+				beaconRoot:  nil,
+				noTxs:       false,
+			}, false)
+
+			if result.err != nil {
+				log.Error("Failed to generate work", "err", result.err)
+				time.Sleep(time.Second)
+				continue
+			}
+
+			log.Info("Starting to seal block", "number", result.block.NumberU64(), "difficulty", result.block.Difficulty())
+
+			// Try to seal the block using the consensus engine
+			resultCh := make(chan *types.Block, 1)
+			if err := miner.engine.Seal(miner.chain, result.block, resultCh, stop); err != nil {
+				log.Error("Seal failed", "err", err)
+				time.Sleep(time.Second)
+				continue
+			}
+
+			// Wait for the sealing result
+			select {
+			case block := <-resultCh:
+				if block != nil {
+					log.Info("Block sealed successfully!", "number", block.NumberU64(), "hash", block.Hash().Hex())
+					// Insert the sealed block into the blockchain
+					_, err := miner.chain.InsertChain([]*types.Block{block})
+					if err != nil {
+						log.Error("Failed to insert block", "err", err)
+						// Block insertion failed, continue mining
+						continue
+					}
+					log.Info("🎉 Successfully mined block!", "number", block.NumberU64(), "hash", block.Hash().Hex())
+				} else {
+					log.Warn("Received nil block from seal")
+				}
+			case <-stop:
+				log.Info("Mining stopped during sealing")
+				return
+			case <-time.After(30 * time.Second):
+				log.Warn("Sealing timeout after 30 seconds")
+				// Timeout, try again
+				continue
+			}
+		}
+	}
 }

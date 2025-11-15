@@ -490,6 +490,7 @@ type ChainConfig struct {
 	// Various consensus engines
 	Ethash             *EthashConfig       `json:"ethash,omitempty"`
 	Clique             *CliqueConfig       `json:"clique,omitempty"`
+	RandomX            *RandomXConfig      `json:"randomx,omitempty"`
 	BlobScheduleConfig *BlobScheduleConfig `json:"blobSchedule,omitempty"`
 }
 
@@ -499,6 +500,20 @@ type EthashConfig struct{}
 // String implements the stringer interface, returning the consensus engine details.
 func (c EthashConfig) String() string {
 	return "ethash"
+}
+
+// RandomXConfig is the consensus engine configs for RandomX proof-of-work based sealing.
+type RandomXConfig struct {
+	// LWMAActivationBlock is the block number at which LWMA difficulty algorithm activates
+	// If nil, LWMA is used immediately for all blocks
+	// LWMA (Linearly Weighted Moving Average) is better suited for CPU mining
+	// than Ethereum's original difficulty algorithm
+	LWMAActivationBlock *big.Int `json:"lwmaActivationBlock,omitempty"`
+}
+
+// String implements the stringer interface, returning the consensus engine details.
+func (c RandomXConfig) String() string {
+	return "randomx"
 }
 
 // CliqueConfig is the consensus engine configs for proof-of-authority based sealing.

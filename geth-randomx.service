@@ -1,0 +1,42 @@
+[Unit]
+Description=Geth RandomX Node
+Documentation=https://github.com/Aqui-oi/go-Ducros
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/go-Ducros
+ExecStart=/home/ubuntu/go-Ducros/build/bin/geth \
+  --datadir /home/ubuntu/go-Ducros/data-randomx \
+  --networkid 33669 \
+  --http \
+  --http.addr "0.0.0.0" \
+  --http.port 8545 \
+  --http.api "eth,net,web3,miner,admin,debug" \
+  --http.corsdomain "*" \
+  --ws \
+  --ws.addr "0.0.0.0" \
+  --ws.port 8546 \
+  --ws.api "eth,net,web3,miner,admin" \
+  --miner.etherbase "0x797c03e9994d77e7d3f2a84ad33857dec585c3a7" \
+  --verbosity 3 \
+  --maxpeers 50
+ExecStartPost=/bin/sleep 5
+ExecStartPost=/home/ubuntu/go-Ducros/start-mining.sh 4
+
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=geth-randomx
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

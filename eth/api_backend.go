@@ -494,3 +494,11 @@ func (b *EthAPIBackend) RPCTxSyncDefaultTimeout() time.Duration {
 func (b *EthAPIBackend) RPCTxSyncMaxTimeout() time.Duration {
 	return b.eth.config.TxSyncMaxTimeout
 }
+
+func (b *EthAPIBackend) Mining() bool {
+	return b.eth.Miner().Mining()
+}
+
+func (b *EthAPIBackend) Hashrate() uint64 {
+	return b.eth.Miner().HashRate()
+}
