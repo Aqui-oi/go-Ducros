@@ -15,14 +15,14 @@ import (
 const (
 	LWMAWindowSize              = 60
 	LWMATargetBlockTime         = 13
-	LWMAMinDifficulty           = 1
-	LWMAMaxAdjustmentUp         = 2    // 2× max increase per block (anti-pump)
-	LWMAMaxAdjustmentDown       = 2    // 2× max decrease per block (anti-dump)
-	LWMATimestampMaxFutureDrift = 15   // 15 seconds future tolerance
-	LWMATimestampMaxPastDrift   = 91   // 91 seconds past tolerance (7× target time)
-	LWMABurstDetectionWindow    = 10   // Last 10 blocks for burst detection
-	LWMABurstThreshold          = 3    // 3× variance = burst attack suspected
-	LWMADampingFactor           = 0.9  // Damping for rapid adjustments (90%)
+	LWMAMinDifficulty           = 100000  // Increased from 1 to prevent multiple blocks per second
+	LWMAMaxAdjustmentUp         = 2       // 2× max increase per block (anti-pump)
+	LWMAMaxAdjustmentDown       = 2       // 2× max decrease per block (anti-dump)
+	LWMATimestampMaxFutureDrift = 15      // 15 seconds future tolerance
+	LWMATimestampMaxPastDrift   = 91      // 91 seconds past tolerance (7× target time)
+	LWMABurstDetectionWindow    = 10      // Last 10 blocks for burst detection
+	LWMABurstThreshold          = 3       // 3× variance = burst attack suspected
+	LWMADampingFactor           = 0.9     // Damping for rapid adjustments (90%)
 )
 
 // CalcDifficultyLWMA calculates difficulty using LWMA-3 algorithm
