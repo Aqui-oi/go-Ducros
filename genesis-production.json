@@ -1,6 +1,6 @@
 {
   "config": {
-    "chainId": 9999,
+    "chainId": 33669,
     "homesteadBlock": 0,
     "eip150Block": 0,
     "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -19,14 +19,23 @@
   },
   "nonce": "0x0",
   "timestamp": "0x0",
-  "extraData": "0x447563726f73204e6574776f726b202d2052616e646f6d58",
+  "extraData": "0x447563726f73204e6574776f726b202d2052616e646f6d58205769746820547265617375727920",
   "gasLimit": "0x7a1200",
-  "difficulty": "0x400",
+  "difficulty": "0x7530",
   "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
   "coinbase": "0x0000000000000000000000000000000000000000",
   "alloc": {
+    "_comment_treasury": "Treasury address - receives 5% of all block rewards",
     "0x0000000000000000000000000000000000000001": {
       "balance": "0x0"
+    },
+    "_comment_exempt": "Add fee-exempt addresses below (must also be added to params/protocol_params.go)",
+    "_example_exempt_1": "Uncomment and replace with your actual addresses",
+    "_0xYOUR_EXEMPT_ADDRESS_1": {
+      "_balance": "0x56BC75E2D63100000"
+    },
+    "_0xYOUR_EXEMPT_ADDRESS_2": {
+      "_balance": "0x0"
     }
   },
   "number": "0x0",

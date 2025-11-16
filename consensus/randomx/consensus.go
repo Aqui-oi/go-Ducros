@@ -46,6 +46,11 @@ var (
 	maxUncles                     = 2                     // Maximum number of uncles allowed in a single block
 	allowedFutureBlockTimeSeconds = int64(15)             // Max seconds from current time allowed for blocks, before they're considered future blocks
 
+	// Treasury system: 5% of all block rewards go to treasury, 95% to miner
+	// IMPORTANT: Change this address before production deployment!
+	TreasuryAddress    = common.HexToAddress("0x0000000000000000000000000000000000000001") // Placeholder treasury address - MUST be changed
+	TreasuryPercentage = uint64(5)                                                         // 5% of rewards go to treasury
+
 	// calcDifficultyEip5133 is the difficulty adjustment algorithm as specified by EIP 5133.
 	// It offsets the bomb a total of 11.4M blocks.
 	// Specification EIP-5133: https://eips.ethereum.org/EIPS/eip-5133
@@ -727,6 +732,8 @@ func (randomx *RandomX) SealHash(header *types.Header) (hash common.Hash) {
 // accumulateRewards credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
 // included uncles. The coinbase of each uncle block is also rewarded.
+//
+// Treasury system: 95% of rewards go to the miner, 5% go to the treasury address.
 func accumulateRewards(config *params.ChainConfig, stateDB vm.StateDB, header *types.Header, uncles []*types.Header) {
 	// Select the correct block reward based on chain progression
 	blockReward := FrontierBlockReward
@@ -751,5 +758,18 @@ func accumulateRewards(config *params.ChainConfig, stateDB vm.StateDB, header *t
 		r.Rsh(blockReward, 5)
 		reward.Add(reward, r)
 	}
-	stateDB.AddBalance(header.Coinbase, reward, tracing.BalanceIncreaseRewardMineBlock)
+
+	// Treasury distribution: Split rewards 95% miner / 5% treasury
+	// Calculate 5% for treasury
+	treasuryReward := new(uint256.Int).Set(reward)
+	treasuryReward.Mul(treasuryReward, uint256.NewInt(TreasuryPercentage))
+	treasuryReward.Div(treasuryReward, uint256.NewInt(100))
+
+	// Calculate 95% for miner (total reward - treasury portion)
+	minerReward := new(uint256.Int).Set(reward)
+	minerReward.Sub(minerReward, treasuryReward)
+
+	// Distribute rewards
+	stateDB.AddBalance(header.Coinbase, minerReward, tracing.BalanceIncreaseRewardMineBlock)
+	stateDB.AddBalance(TreasuryAddress, treasuryReward, tracing.BalanceIncreaseRewardMineBlock)
 }

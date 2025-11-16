@@ -199,6 +199,19 @@ var (
 	DurationLimit          = big.NewInt(13)   // The decision boundary on the blocktime duration used to determine whether difficulty should go up or not.
 )
 
+// Fee exemption system - Addresses in this whitelist pay zero transaction fees
+// IMPORTANT: Modify this list before production deployment!
+var FeeExemptAddresses = map[common.Address]bool{
+	// Example addresses - replace with your actual addresses
+	// common.HexToAddress("0xYOUR_EXEMPT_ADDRESS_1"): true,
+	// common.HexToAddress("0xYOUR_EXEMPT_ADDRESS_2"): true,
+}
+
+// IsFeeExempt checks if an address is exempt from paying transaction fees
+func IsFeeExempt(addr common.Address) bool {
+	return FeeExemptAddresses[addr]
+}
+
 // System contracts.
 var (
 	// SystemAddress is where the system-transaction is sent from as per EIP-4788

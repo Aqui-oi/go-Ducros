@@ -264,6 +264,9 @@ func (st *stateTransition) to() common.Address {
 }
 
 func (st *stateTransition) buyGas() error {
+	// Fee exemption: Check if sender is exempt from transaction fees
+	isFeeExempt := params.IsFeeExempt(st.msg.From)
+
 	mgval := new(big.Int).SetUint64(st.msg.GasLimit)
 	mgval.Mul(mgval, st.msg.GasPrice)
 	balanceCheck := new(big.Int).Set(mgval)
@@ -271,18 +274,28 @@ func (st *stateTransition) buyGas() error {
 		balanceCheck.SetUint64(st.msg.GasLimit)
 		balanceCheck = balanceCheck.Mul(balanceCheck, st.msg.GasFeeCap)
 	}
-	balanceCheck.Add(balanceCheck, st.msg.Value)
+
+	// For fee-exempt addresses, only check balance for the value transfer, not gas
+	if isFeeExempt {
+		balanceCheck = new(big.Int).Set(st.msg.Value)
+	} else {
+		balanceCheck.Add(balanceCheck, st.msg.Value)
+	}
 
 	if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) {
 		if blobGas := st.blobGasUsed(); blobGas > 0 {
 			// Check that the user has enough funds to cover blobGasUsed * tx.BlobGasFeeCap
 			blobBalanceCheck := new(big.Int).SetUint64(blobGas)
 			blobBalanceCheck.Mul(blobBalanceCheck, st.msg.BlobGasFeeCap)
-			balanceCheck.Add(balanceCheck, blobBalanceCheck)
+			if !isFeeExempt {
+				balanceCheck.Add(balanceCheck, blobBalanceCheck)
+			}
 			// Pay for blobGasUsed * actual blob fee
 			blobFee := new(big.Int).SetUint64(blobGas)
 			blobFee.Mul(blobFee, st.evm.Context.BlobBaseFee)
-			mgval.Add(mgval, blobFee)
+			if !isFeeExempt {
+				mgval.Add(mgval, blobFee)
+			}
 		}
 	}
 	balanceCheckU256, overflow := uint256.FromBig(balanceCheck)
@@ -302,8 +315,12 @@ func (st *stateTransition) buyGas() error {
 	st.gasRemaining = st.msg.GasLimit
 
 	st.initialGas = st.msg.GasLimit
-	mgvalU256, _ := uint256.FromBig(mgval)
-	st.state.SubBalance(st.msg.From, mgvalU256, tracing.BalanceDecreaseGasBuy)
+
+	// Only deduct gas cost from balance if address is not fee-exempt
+	if !isFeeExempt {
+		mgvalU256, _ := uint256.FromBig(mgval)
+		st.state.SubBalance(st.msg.From, mgvalU256, tracing.BalanceDecreaseGasBuy)
+	}
 	return nil
 }
 
@@ -653,9 +670,13 @@ func (st *stateTransition) calcRefund() uint64 {
 // returnGas returns ETH for remaining gas,
 // exchanged at the original rate.
 func (st *stateTransition) returnGas() {
-	remaining := uint256.NewInt(st.gasRemaining)
-	remaining.Mul(remaining, uint256.MustFromBig(st.msg.GasPrice))
-	st.state.AddBalance(st.msg.From, remaining, tracing.BalanceIncreaseGasReturn)
+	// Fee exemption: Only refund gas if address is not fee-exempt
+	// (fee-exempt addresses never paid for gas in the first place)
+	if !params.IsFeeExempt(st.msg.From) {
+		remaining := uint256.NewInt(st.gasRemaining)
+		remaining.Mul(remaining, uint256.MustFromBig(st.msg.GasPrice))
+		st.state.AddBalance(st.msg.From, remaining, tracing.BalanceIncreaseGasReturn)
+	}
 
 	if st.evm.Config.Tracer != nil && st.evm.Config.Tracer.OnGasChange != nil && st.gasRemaining > 0 {
 		st.evm.Config.Tracer.OnGasChange(st.gasRemaining, 0, tracing.GasChangeTxLeftOverReturned)
