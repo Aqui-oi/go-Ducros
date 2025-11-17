@@ -19,15 +19,24 @@ package params
 // DucrosBootnodes are the enode URLs of the P2P bootstrap nodes running on
 // the Ducros network.
 var DucrosBootnodes = []string{
-	// Ducros Foundation Bootnodes
-	// TODO: Replace with actual production bootnodes once deployed
-	// Generate bootnode keys with: bootnode -genkey=bootnode.key
-	// Get enode URL with: bootnode -nodekey=bootnode.key -writeaddress
-
-	// Example format (replace with real enodes):
-	// "enode://pubkey@bootnode1.ducros.network:30303",
-	// "enode://pubkey@bootnode2.ducros.network:30303",
-	// "enode://pubkey@bootnode3.ducros.network:30304",
+	// Ducros Mainnet Bootstrap Nodes
+	//
+	// IMPORTANT: Replace these with your actual bootnode enodes before mainnet launch!
+	//
+	// How to generate bootnodes:
+	// 1. Generate key: bootnode -genkey=bootnode.key
+	// 2. Get enode:    bootnode -nodekey=bootnode.key -writeaddress
+	// 3. Deploy on stable servers with public IPs
+	// 4. Add enode URLs below
+	//
+	// Format: "enode://[public_key]@[IP_or_domain]:[port]"
+	//
+	// TODO: Add your production bootnodes here:
+	// "enode://YOUR_BOOTNODE1_PUBKEY@bootnode1.ducros.network:30303",
+	// "enode://YOUR_BOOTNODE2_PUBKEY@bootnode2.ducros.network:30303",
+	// "enode://YOUR_BOOTNODE3_PUBKEY@bootnode3.ducros.network:30303",
+	// "enode://YOUR_BOOTNODE4_PUBKEY@your-ip-address:30303",
+	// "enode://YOUR_BOOTNODE5_PUBKEY@your-ip-address:30304",
 }
 
 // DucrosTestnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
