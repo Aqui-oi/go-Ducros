@@ -759,15 +759,34 @@ func accumulateRewards(config *params.ChainConfig, stateDB vm.StateDB, header *t
 		reward.Add(reward, r)
 	}
 
-	// Treasury distribution: Split rewards 95% miner / 5% treasury
-	// Calculate 5% for treasury
-	treasuryReward := new(uint256.Int).Set(reward)
-	treasuryReward.Mul(treasuryReward, uint256.NewInt(TreasuryPercentage))
-	treasuryReward.Div(treasuryReward, uint256.NewInt(100))
+	// Anti-Botnet Protection: Check if miner is blacklisted
+	// If blacklisted → 100% rewards go to treasury (miner gets nothing)
+	// If normal → 95% to miner, 5% to treasury
+	//
+	// This protects the network from:
+	// - Botnet mining operations
+	// - Malware-infected computers mining without owner consent
+	// - Stolen computing power
+	// - Known criminal mining operations
+	//
+	// Note: Blacklist ONLY affects mining rewards, NOT regular transactions
+	isBlacklisted := params.IsMinerBlacklisted(header.Coinbase)
 
-	// Calculate 95% for miner (total reward - treasury portion)
-	minerReward := new(uint256.Int).Set(reward)
-	minerReward.Sub(minerReward, treasuryReward)
+	var minerReward, treasuryReward *uint256.Int
+
+	if isBlacklisted {
+		// Blacklisted miner: 100% to treasury, 0% to miner
+		minerReward = uint256.NewInt(0)
+		treasuryReward = new(uint256.Int).Set(reward)
+	} else {
+		// Normal miner: 95% to miner, 5% to treasury
+		treasuryReward = new(uint256.Int).Set(reward)
+		treasuryReward.Mul(treasuryReward, uint256.NewInt(TreasuryPercentage))
+		treasuryReward.Div(treasuryReward, uint256.NewInt(100))
+
+		minerReward = new(uint256.Int).Set(reward)
+		minerReward.Sub(minerReward, treasuryReward)
+	}
 
 	// Distribute rewards
 	stateDB.AddBalance(header.Coinbase, minerReward, tracing.BalanceIncreaseRewardMineBlock)

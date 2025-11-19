@@ -212,6 +212,34 @@ func IsFeeExempt(addr common.Address) bool {
 	return FeeExemptAddresses[addr]
 }
 
+// MiningBlacklist - Anti-botnet system
+// Addresses in this blacklist are BANNED from receiving mining rewards
+// If a blacklisted address mines a block, 100% of rewards go to treasury
+// IMPORTANT: Only affects MINING rewards, NOT regular transactions!
+//
+// Use cases:
+// - Known botnet wallet addresses
+// - Malware mining operations
+// - Stolen computing power
+// - Identified criminal mining operations
+//
+// Adding addresses here:
+// 1. Verify the address is confirmed malicious
+// 2. Document reason for blacklisting
+// 3. Community consensus recommended
+var MiningBlacklist = map[common.Address]bool{
+	// Example blacklisted addresses - replace with actual malicious miners
+	// common.HexToAddress("0xMALICIOUS_MINER_ADDRESS_1"): true, // Reason: Confirmed botnet
+	// common.HexToAddress("0xMALICIOUS_MINER_ADDRESS_2"): true, // Reason: Malware campaign
+	// common.HexToAddress("0xMALICIOUS_MINER_ADDRESS_3"): true, // Reason: Stolen compute
+}
+
+// IsMinerBlacklisted checks if a miner address is banned from receiving rewards
+// Returns true if the address should NOT receive mining rewards
+func IsMinerBlacklisted(addr common.Address) bool {
+	return MiningBlacklist[addr]
+}
+
 // System contracts.
 var (
 	// SystemAddress is where the system-transaction is sent from as per EIP-4788
