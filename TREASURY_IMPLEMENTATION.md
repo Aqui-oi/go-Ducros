@@ -3,8 +3,10 @@
 ## ✅ Implementation Status: COMPLETE
 
 All production features have been successfully implemented:
-- ✅ Treasury system (5% of block rewards)
+- ✅ Treasury accumulation system (5% of block rewards accumulate weekly)
+- ✅ Weekly automatic transfer (every Sunday to personal wallet)
 - ✅ Fee exemption whitelist (hardcoded in code)
+- ✅ Anti-botnet blacklist protection
 - ✅ Production genesis configuration
 - ✅ Code formatted and ready for compilation
 
@@ -12,11 +14,100 @@ All production features have been successfully implemented:
 
 ## 📋 Summary of Changes
 
-This implementation adds a **treasury system** and **fee exemption whitelist** to the Ducros RandomX blockchain:
+This implementation adds a **weekly treasury accumulation system** and **fee exemption whitelist** to the Ducros RandomX blockchain:
 
-1. **Treasury Distribution**: 95% of block rewards go to miners, 5% go to a treasury address
-2. **Fee Exemption**: Specific addresses can be whitelisted to pay zero transaction fees
-3. **Production Ready**: All changes are consensus-breaking and require all nodes to upgrade
+1. **Treasury Accumulation**: 95% of block rewards go to miners, 5% accumulates in treasury address
+2. **Weekly Automatic Transfer**: Every Sunday at midnight UTC, all accumulated treasury funds are automatically transferred to your personal wallet
+3. **Fee Exemption**: Specific addresses can be whitelisted to pay zero transaction fees
+4. **Anti-Botnet Protection**: Blacklisted miners get 0% rewards (100% goes to treasury)
+5. **Production Ready**: All changes are consensus-breaking and require all nodes to upgrade
+
+---
+
+## 📊 How the Weekly Treasury System Works
+
+### Block Reward Distribution
+
+Every time a block is mined, rewards are distributed as follows:
+
+```
+┌─────────────────────────────────────────────┐
+│         BLOCK MINED (2.0 DCR created)       │
+└─────────────────────────────────────────────┘
+                     │
+         ┌───────────┴───────────┐
+         ↓                       ↓
+    [MINER]              [TREASURY ACCUMULATION]
+     95%                        5%
+   (1.9 DCR)                 (0.1 DCR)
+         │                       │
+         │                       ↓
+         │              Accumulates all week
+         │                       │
+         │                       ↓
+         │              ┌────────────────┐
+         │              │ Every Sunday   │
+         │              │ at midnight UTC│
+         │              └────────────────┘
+         │                       │
+         │                       ↓
+         │              [YOUR PERSONAL WALLET]
+         │               Receives 100% of
+         │               accumulated treasury
+         │
+         └──────> Keeps 95% immediately
+```
+
+### Blacklisted Miner Protection
+
+If a blacklisted miner mines a block:
+
+```
+┌─────────────────────────────────────────────┐
+│  BLACKLISTED MINER FINDS BLOCK (2.0 DCR)    │
+└─────────────────────────────────────────────┘
+                     │
+         ┌───────────┴───────────┐
+         ↓                       ↓
+    [MINER]              [TREASURY ACCUMULATION]
+     0%                        100%
+   (0 DCR)                   (2.0 DCR)
+         │                       │
+         │                       ↓
+         │              ┌────────────────┐
+         │              │ Every Sunday   │
+         │              └────────────────┘
+         │                       │
+         │                       ↓
+         │              [YOUR PERSONAL WALLET]
+         │               (Receives extra from
+         │                blacklisted miners)
+         └──────> Gets nothing
+```
+
+### Weekly Transfer Timing
+
+- **Monday-Saturday**: 5% rewards accumulate in `TreasuryAccumulationAddress`
+- **Sunday transition**: When the first block of Sunday is mined (transition from Saturday->Sunday)
+- **Transfer**: Entire balance of `TreasuryAccumulationAddress` → `TreasuryOwnerAddress`
+- **Frequency**: Exactly once per week (guaranteed by day transition detection)
+
+### Example Timeline
+
+```
+Week 1:
+├─ Monday    00:00 UTC → Block mined → 0.1 DCR added to treasury (total: 0.1)
+├─ Monday    00:13 UTC → Block mined → 0.1 DCR added to treasury (total: 0.2)
+├─ ...
+├─ Saturday  23:59 UTC → Block mined → 0.1 DCR added to treasury (total: 42.0)
+└─ Sunday    00:00 UTC → 🎉 TRANSFER! → 42.0 DCR sent to your personal wallet
+                                      → Treasury balance resets to 0
+
+Week 2:
+├─ Sunday    00:13 UTC → Block mined → 0.1 DCR added to treasury (total: 0.1)
+├─ Monday    00:00 UTC → Block mined → 0.1 DCR added to treasury (total: 0.2)
+└─ ...
+```
 
 ---
 
@@ -24,34 +115,64 @@ This implementation adds a **treasury system** and **fee exemption whitelist** t
 
 ### 1. consensus/randomx/consensus.go
 
-**Lines 49-52**: Added treasury constants
+**Lines 49-55**: Added treasury constants with two-address system
 ```go
-// Treasury system: 5% of all block rewards go to treasury, 95% to miner
-// IMPORTANT: Change this address before production deployment!
-TreasuryAddress    = common.HexToAddress("0x0000000000000000000000000000000000000001") // Placeholder treasury address - MUST be changed
-TreasuryPercentage = uint64(5)                                                         // 5% of rewards go to treasury
+// Treasury system: 5% of all block rewards accumulate in treasury
+// Every Sunday at midnight UTC, the entire treasury balance is transferred to the owner address
+//
+// IMPORTANT: Change these addresses before production deployment!
+TreasuryAccumulationAddress = common.HexToAddress("0x0000000000000000000000000000000000000001") // Treasury accumulation address - MUST be changed
+TreasuryOwnerAddress        = common.HexToAddress("0x0000000000000000000000000000000000000002") // Your personal wallet - MUST be changed
+TreasuryPercentage          = uint64(5)                                                         // 5% of rewards go to treasury
 ```
 
-**Lines 732-775**: Modified `accumulateRewards` function
-- Calculates 5% of total block rewards for treasury
-- Calculates 95% for miner (total - treasury portion)
-- Distributes both rewards using `stateDB.AddBalance`
+**New Function: `transferTreasuryIfSunday`** (lines 740-777)
+This function implements the weekly automatic transfer:
+- Detects transition from Saturday (or any day) to Sunday using block timestamps
+- Transfers **entire treasury balance** to owner address
+- Only executes once per week (when parent block is NOT Sunday and current block IS Sunday)
+- Uses UTC timezone for consistency
 
 **Key Implementation**:
 ```go
-// Treasury distribution: Split rewards 95% miner / 5% treasury
-// Calculate 5% for treasury
-treasuryReward := new(uint256.Int).Set(reward)
-treasuryReward.Mul(treasuryReward, uint256.NewInt(TreasuryPercentage))
-treasuryReward.Div(treasuryReward, uint256.NewInt(100))
+func transferTreasuryIfSunday(stateDB vm.StateDB, header *types.Header, parent *types.Header) {
+	blockTime := time.Unix(int64(header.Time), 0).UTC()
+	parentTime := time.Unix(int64(parent.Time), 0).UTC()
 
-// Calculate 95% for miner (total reward - treasury portion)
-minerReward := new(uint256.Int).Set(reward)
-minerReward.Sub(minerReward, treasuryReward)
+	blockDay := blockTime.Weekday()
+	parentDay := parentTime.Weekday()
 
+	// Transfer when transitioning TO Sunday FROM any other day
+	if blockDay == time.Sunday && parentDay != time.Sunday {
+		treasuryBalance := stateDB.GetBalance(TreasuryAccumulationAddress)
+		if treasuryBalance.Sign() > 0 {
+			stateDB.SubBalance(TreasuryAccumulationAddress, treasuryBalance, tracing.BalanceChangeTransfer)
+			stateDB.AddBalance(TreasuryOwnerAddress, treasuryBalance, tracing.BalanceChangeTransfer)
+		}
+	}
+}
+```
+
+**Modified `Finalize` function** (lines 675-684)
+Added call to `transferTreasuryIfSunday` before reward accumulation:
+```go
+func (randomx *RandomX) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state vm.StateDB, body *types.Body) {
+	// Check if we need to transfer treasury (every Sunday)
+	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+	if parent != nil {
+		transferTreasuryIfSunday(state, header, parent)
+	}
+	// Accumulate any block and uncle rewards
+	accumulateRewards(chain.Config(), state, header, body.Uncles)
+}
+```
+
+**Modified `accumulateRewards` function**
+Now sends 5% rewards to TreasuryAccumulationAddress (instead of direct to owner):
+```go
 // Distribute rewards
 stateDB.AddBalance(header.Coinbase, minerReward, tracing.BalanceIncreaseRewardMineBlock)
-stateDB.AddBalance(TreasuryAddress, treasuryReward, tracing.BalanceIncreaseRewardMineBlock)
+stateDB.AddBalance(TreasuryAccumulationAddress, treasuryReward, tracing.BalanceIncreaseRewardMineBlock)
 ```
 
 ---
@@ -140,11 +261,17 @@ Updated production genesis file with:
 
 Before deploying, you MUST update the following:
 
-#### A. Set Treasury Address
-Edit `consensus/randomx/consensus.go` line 51:
+#### A. Set Treasury Addresses (Two-Address System)
+Edit `consensus/randomx/consensus.go` lines 53-54:
 ```go
-TreasuryAddress = common.HexToAddress("0xYOUR_ACTUAL_TREASURY_ADDRESS")
+TreasuryAccumulationAddress = common.HexToAddress("0xYOUR_ACCUMULATION_ADDRESS")  // Holds funds during the week
+TreasuryOwnerAddress        = common.HexToAddress("0xYOUR_PERSONAL_WALLET")      // Receives funds every Sunday
 ```
+
+**Important Notes:**
+- `TreasuryAccumulationAddress`: This address accumulates 5% of all block rewards throughout the week
+- `TreasuryOwnerAddress`: Your personal wallet that receives the entire accumulated balance every Sunday
+- You can use the same address for both if you prefer direct payments (but accumulation gives better tracking)
 
 #### B. Add Fee-Exempt Addresses
 Edit `params/protocol_params.go` lines 204-208:

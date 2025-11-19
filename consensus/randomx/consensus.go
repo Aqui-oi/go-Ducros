@@ -46,10 +46,13 @@ var (
 	maxUncles                     = 2                     // Maximum number of uncles allowed in a single block
 	allowedFutureBlockTimeSeconds = int64(15)             // Max seconds from current time allowed for blocks, before they're considered future blocks
 
-	// Treasury system: 5% of all block rewards go to treasury, 95% to miner
-	// IMPORTANT: Change this address before production deployment!
-	TreasuryAddress    = common.HexToAddress("0x0000000000000000000000000000000000000001") // Placeholder treasury address - MUST be changed
-	TreasuryPercentage = uint64(5)                                                         // 5% of rewards go to treasury
+	// Treasury system: 5% of all block rewards accumulate in treasury
+	// Every Sunday at midnight UTC, the entire treasury balance is transferred to the owner address
+	//
+	// IMPORTANT: Change these addresses before production deployment!
+	TreasuryAccumulationAddress = common.HexToAddress("0x0000000000000000000000000000000000000001") // Treasury accumulation address - MUST be changed
+	TreasuryOwnerAddress        = common.HexToAddress("0x0000000000000000000000000000000000000002") // Your personal wallet - MUST be changed
+	TreasuryPercentage          = uint64(5)                                                         // 5% of rewards go to treasury
 
 	// calcDifficultyEip5133 is the difficulty adjustment algorithm as specified by EIP 5133.
 	// It offsets the bomb a total of 11.4M blocks.
@@ -670,6 +673,12 @@ func (randomx *RandomX) Prepare(chain consensus.ChainHeaderReader, header *types
 
 // Finalize implements consensus.Engine, accumulating the block and uncle rewards.
 func (randomx *RandomX) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state vm.StateDB, body *types.Body) {
+	// Check if we need to transfer treasury (every Sunday)
+	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+	if parent != nil {
+		transferTreasuryIfSunday(state, header, parent)
+	}
+
 	// Accumulate any block and uncle rewards
 	accumulateRewards(chain.Config(), state, header, body.Uncles)
 }
@@ -734,6 +743,39 @@ func (randomx *RandomX) SealHash(header *types.Header) (hash common.Hash) {
 // included uncles. The coinbase of each uncle block is also rewarded.
 //
 // Treasury system: 95% of rewards go to the miner, 5% go to the treasury address.
+// transferTreasuryIfSunday checks if we're transitioning to Sunday and transfers
+// the entire treasury balance to the owner address
+//
+// This function ensures that treasury rewards are distributed weekly:
+//   - During the week: 5% rewards accumulate in TreasuryAccumulationAddress
+//   - Every Sunday: When we transition from Saturday->Sunday, ALL accumulated
+//     treasury funds are transferred to TreasuryOwnerAddress (your personal wallet)
+//
+// The transfer happens exactly once per week by detecting the day transition.
+func transferTreasuryIfSunday(stateDB vm.StateDB, header *types.Header, parent *types.Header) {
+	// Convert block timestamps to UTC time
+	blockTime := time.Unix(int64(header.Time), 0).UTC()
+	parentTime := time.Unix(int64(parent.Time), 0).UTC()
+
+	// Get weekdays
+	blockDay := blockTime.Weekday()
+	parentDay := parentTime.Weekday()
+
+	// Transfer treasury when transitioning TO Sunday FROM any other day
+	// This ensures exactly one transfer per week
+	if blockDay == time.Sunday && parentDay != time.Sunday {
+		// Get current treasury balance
+		treasuryBalance := stateDB.GetBalance(TreasuryAccumulationAddress)
+
+		// Only transfer if there's actually something to transfer
+		if treasuryBalance.Sign() > 0 {
+			// Move entire balance from treasury to owner
+			stateDB.SubBalance(TreasuryAccumulationAddress, treasuryBalance, tracing.BalanceChangeTransfer)
+			stateDB.AddBalance(TreasuryOwnerAddress, treasuryBalance, tracing.BalanceChangeTransfer)
+		}
+	}
+}
+
 func accumulateRewards(config *params.ChainConfig, stateDB vm.StateDB, header *types.Header, uncles []*types.Header) {
 	// Select the correct block reward based on chain progression
 	blockReward := FrontierBlockReward
@@ -790,5 +832,5 @@ func accumulateRewards(config *params.ChainConfig, stateDB vm.StateDB, header *t
 
 	// Distribute rewards
 	stateDB.AddBalance(header.Coinbase, minerReward, tracing.BalanceIncreaseRewardMineBlock)
-	stateDB.AddBalance(TreasuryAddress, treasuryReward, tracing.BalanceIncreaseRewardMineBlock)
+	stateDB.AddBalance(TreasuryAccumulationAddress, treasuryReward, tracing.BalanceIncreaseRewardMineBlock)
 }
