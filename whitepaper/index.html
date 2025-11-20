@@ -1,0 +1,1942 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Ducros Chain (DCS) - The CPU-First French Blockchain. Whitepaper officiel conforme MiCA 2024.">
+    <meta name="keywords" content="blockchain, CPU mining, RandomX, cryptocurrency, ICO, MiCA">
+    <title>Ducros Chain (DCS) - Whitepaper Officiel</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation fixe -->
+    <nav id="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <h1>DUCROS CHAIN</h1>
+                <span class="ticker">DCS</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#home">Accueil</a></li>
+                <li><a href="#executive-summary">Résumé</a></li>
+                <li><a href="#problem">Problématique</a></li>
+                <li><a href="#architecture">Architecture</a></li>
+                <li><a href="#tokenomics">Tokenomics</a></li>
+                <li><a href="#ico">ICO</a></li>
+                <li><a href="#legal">Légal</a></li>
+                <li><a href="#roadmap">Roadmap</a></li>
+            </ul>
+            <button class="download-btn">Télécharger PDF</button>
+        </div>
+    </nav>
+
+    <!-- Section 1: Page de garde -->
+    <section id="home" class="hero">
+        <div class="hero-content">
+            <div class="hero-badge">Version 1.0.0</div>
+            <h1 class="hero-title">DUCROS CHAIN</h1>
+            <p class="hero-subtitle">The CPU-First French Blockchain</p>
+            <div class="hero-tagline">
+                <p>Une blockchain accessible, décentralisée et éco-responsable</p>
+                <p>Mining CPU-friendly • Anti-Botnet Protection • EVM Compatible</p>
+            </div>
+
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-number">~13s</span>
+                    <span class="stat-label">Block Time</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">RandomX</span>
+                    <span class="stat-label">PoW Algorithm</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">EVM</span>
+                    <span class="stat-label">Compatible</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">CPU</span>
+                    <span class="stat-label">Mining</span>
+                </div>
+            </div>
+
+            <div class="hero-meta">
+                <p><strong>Date de publication:</strong> Novembre 2025</p>
+                <p><strong>Émetteur:</strong> Aquí oï (SASU) - France</p>
+                <p><strong>Créateur:</strong> Alexandre Ducros</p>
+                <p><strong>Contact:</strong> contact@ducroschain.io</p>
+            </div>
+
+            <div class="legal-disclaimer">
+                <h3>⚠️ Avertissement Légal Important</h3>
+                <p>Ce document est fourni à titre informatif uniquement et ne constitue pas une offre de vente ou une sollicitation d'achat de valeurs mobilières ou d'actifs financiers. L'acquisition de tokens DCS comporte des risques substantiels, incluant la perte totale du capital investi. Les performances passées ne garantissent pas les résultats futurs. Ce whitepaper est conforme au règlement européen MiCA (Markets in Crypto-Assets) 2024. Les investisseurs potentiels doivent effectuer leur propre analyse et consulter des conseillers financiers, juridiques et fiscaux indépendants avant toute décision d'investissement.</p>
+            </div>
+
+            <a href="#executive-summary" class="cta-button">Lire le Whitepaper</a>
+        </div>
+        <div class="scroll-indicator">
+            <span>Scroll</span>
+            <div class="mouse"></div>
+        </div>
+    </section>
+
+    <!-- Section 2: Résumé Exécutif -->
+    <section id="executive-summary" class="content-section">
+        <div class="container">
+            <h2 class="section-title">Résumé Exécutif</h2>
+
+            <div class="executive-grid">
+                <div class="executive-card">
+                    <div class="card-icon">🎯</div>
+                    <h3>Vision</h3>
+                    <p>Ducros Chain (DCS) est une blockchain Layer 1 conçue pour démocratiser le minage de cryptomonnaies en le rendant accessible sur n'importe quel processeur (CPU). Notre mission est de créer un écosystème décentralisé, sécurisé et éco-responsable, où chaque individu peut participer au consensus sans investissement matériel prohibitif.</p>
+                </div>
+
+                <div class="executive-card">
+                    <div class="card-icon">💡</div>
+                    <h3>Innovation</h3>
+                    <p>Grâce à l'algorithme <strong>RandomX</strong>, résistant aux ASIC, nous garantissons une distribution équitable des récompenses. Notre système unique anti-botnet et notre mécanisme de Treasury automatique assurent la pérennité du protocole tout en protégeant les utilisateurs légitimes.</p>
+                </div>
+
+                <div class="executive-card">
+                    <div class="card-icon">🌍</div>
+                    <h3>Cible</h3>
+                    <p><strong>Grand Public:</strong> Utilisateurs de PC, NAS, serveurs domestiques<br>
+                    <strong>Entreprises:</strong> Datacenters, providers (partenariat Free en cours)<br>
+                    <strong>Développeurs:</strong> Dapps EVM-compatible, smart contracts</p>
+                </div>
+
+                <div class="executive-card">
+                    <div class="card-icon">💰</div>
+                    <h3>Levée de Fonds</h3>
+                    <p>ICO conforme MiCA 2024 pour financer le développement, l'infrastructure, les audits de sécurité et l'adoption massive. Objectif: créer la première blockchain française CPU-friendly avec une adoption nationale via les ISP partenaires.</p>
+                </div>
+            </div>
+
+            <div class="key-features">
+                <h3>Caractéristiques Principales</h3>
+                <div class="features-list">
+                    <div class="feature">
+                        <span class="check">✓</span>
+                        <span><strong>CPU-Friendly:</strong> Mining accessible sur tout processeur</span>
+                    </div>
+                    <div class="feature">
+                        <span class="check">✓</span>
+                        <span><strong>EVM Compatible:</strong> Support Ethereum tools & dApps</span>
+                    </div>
+                    <div class="feature">
+                        <span class="check">✓</span>
+                        <span><strong>Anti-Botnet:</strong> Protection intégrée contre mining malveillant</span>
+                    </div>
+                    <div class="feature">
+                        <span class="check">✓</span>
+                        <span><strong>Treasury System:</strong> Financement automatique du développement</span>
+                    </div>
+                    <div class="feature">
+                        <span class="check">✓</span>
+                        <span><strong>Dev Fee 5%:</strong> Rémunération transparente des créateurs</span>
+                    </div>
+                    <div class="feature">
+                        <span class="check">✓</span>
+                        <span><strong>Open Source:</strong> Code auditable sur GitHub</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 3: Problématique -->
+    <section id="problem" class="content-section alt-bg">
+        <div class="container">
+            <h2 class="section-title">Problématique : Le Mining Inaccessible</h2>
+
+            <div class="problem-intro">
+                <p>Les blockchains PoW actuelles sont confrontées à des défis critiques qui limitent leur adoption et leur décentralisation.</p>
+            </div>
+
+            <div class="problems-grid">
+                <div class="problem-card">
+                    <div class="problem-icon">❌</div>
+                    <h3>Coût Prohibitif du Matériel</h3>
+                    <p><strong>Bitcoin & Ethereum (avant PoS):</strong> Nécessitent des ASIC ou GPU haut de gamme coûtant plusieurs milliers d'euros. Le mining est devenu l'apanage des fermes industrielles.</p>
+                    <ul>
+                        <li>ASIC Bitcoin: 2000€ - 10000€ par unité</li>
+                        <li>GPU Ethereum: 500€ - 2000€ par carte</li>
+                        <li>Consommation électrique: 1500W - 3000W</li>
+                    </ul>
+                </div>
+
+                <div class="problem-card">
+                    <div class="problem-icon">⚠️</div>
+                    <h3>Centralisation du Mining</h3>
+                    <p>La domination des grandes fermes de mining crée une centralisation contraire à l'esprit des cryptomonnaies:</p>
+                    <ul>
+                        <li>3-5 pools contrôlent >51% du hashrate Bitcoin</li>
+                        <li>Risques géopolitiques (régulation chinoise)</li>
+                        <li>Barrières à l'entrée insurmontables pour particuliers</li>
+                    </ul>
+                </div>
+
+                <div class="problem-card">
+                    <div class="problem-icon">🤖</div>
+                    <h3>Attaques par Botnets</h3>
+                    <p>Les blockchains CPU existantes (Monero, etc.) sont vulnérables aux botnets exploitant des machines infectées:</p>
+                    <ul>
+                        <li>Malwares de crypto-mining (XMRig, etc.)</li>
+                        <li>Utilisation non-consentie de ressources</li>
+                        <li>Aucun mécanisme de protection intégré</li>
+                        <li>Récompenses bénéficient aux acteurs malveillants</li>
+                    </ul>
+                </div>
+
+                <div class="problem-card">
+                    <div class="problem-icon">🌍</div>
+                    <h3>Impact Environnemental</h3>
+                    <p>Le mining ASIC/GPU consomme des quantités d'énergie astronomiques:</p>
+                    <ul>
+                        <li>Bitcoin: ~150 TWh/an (équivalent d'un pays)</li>
+                        <li>Empreinte carbone considérable</li>
+                        <li>Génération de déchets électroniques (ASIC obsolètes)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="solution-preview">
+                <h3>Notre Solution</h3>
+                <p>Ducros Chain répond à ces défis avec une approche innovante:</p>
+                <div class="solution-points">
+                    <div class="solution-point">
+                        <strong>RandomX PoW:</strong> Algorithme optimisé pour CPU, résistant aux ASIC
+                    </div>
+                    <div class="solution-point">
+                        <strong>Accessibilité:</strong> Mining possible sur PC, NAS, Freebox, smartphones
+                    </div>
+                    <div class="solution-point">
+                        <strong>Anti-Botnet:</strong> Détection et blacklist automatique des mineurs malveillants
+                    </div>
+                    <div class="solution-point">
+                        <strong>Éco-responsabilité:</strong> Consommation énergétique réduite (50W-150W vs 1500W)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 4: Architecture Générale -->
+    <section id="architecture" class="content-section">
+        <div class="container">
+            <h2 class="section-title">Architecture Technique</h2>
+
+            <div class="architecture-overview">
+                <div class="arch-card">
+                    <h3>Type de Blockchain</h3>
+                    <ul class="tech-list">
+                        <li><strong>Layer:</strong> L1 publique</li>
+                        <li><strong>Consensus:</strong> Proof of Work (RandomX)</li>
+                        <li><strong>Block Time:</strong> ~13 secondes</li>
+                        <li><strong>Difficulté:</strong> Ajustement automatique (LWMA)</li>
+                        <li><strong>Smart Contracts:</strong> EVM-compatible (Solidity)</li>
+                        <li><strong>Client:</strong> Go-Ethereum fork optimisé</li>
+                    </ul>
+                </div>
+
+                <div class="arch-card">
+                    <h3>Composants Clés</h3>
+                    <ul class="tech-list">
+                        <li><strong>RandomX Core:</strong> Algorithme de consensus CPU-optimized</li>
+                        <li><strong>EVM:</strong> Exécution de smart contracts compatibles Ethereum</li>
+                        <li><strong>Treasury System:</strong> Gestion automatique des fonds de développement</li>
+                        <li><strong>Anti-Botnet Layer:</strong> Détection et blacklist malveillants</li>
+                        <li><strong>RPC API:</strong> Interface pour wallets et dApps</li>
+                        <li><strong>Block Explorer:</strong> Transparency on-chain</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tech-stack">
+                <h3>Stack Technique</h3>
+                <div class="stack-grid">
+                    <div class="stack-item">
+                        <span class="stack-name">Core</span>
+                        <span class="stack-tech">Go-Ethereum (Geth)</span>
+                    </div>
+                    <div class="stack-item">
+                        <span class="stack-name">Consensus</span>
+                        <span class="stack-tech">RandomX (Monero-derived)</span>
+                    </div>
+                    <div class="stack-item">
+                        <span class="stack-name">EVM</span>
+                        <span class="stack-tech">Solidity 0.8+</span>
+                    </div>
+                    <div class="stack-item">
+                        <span class="stack-name">P2P</span>
+                        <span class="stack-tech">libp2p / devp2p</span>
+                    </div>
+                    <div class="stack-item">
+                        <span class="stack-name">Storage</span>
+                        <span class="stack-tech">LevelDB</span>
+                    </div>
+                    <div class="stack-item">
+                        <span class="stack-name">API</span>
+                        <span class="stack-tech">JSON-RPC / WebSocket</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="compatibility">
+                <h3>Compatibilité EVM</h3>
+                <p>Ducros Chain est <strong>100% compatible</strong> avec l'écosystème Ethereum:</p>
+                <div class="compat-features">
+                    <div class="compat-item">✓ MetaMask & wallets Ethereum</div>
+                    <div class="compat-item">✓ Remix IDE pour développement</div>
+                    <div class="compat-item">✓ Hardhat / Truffle / Foundry</div>
+                    <div class="compat-item">✓ Web3.js / Ethers.js</div>
+                    <div class="compat-item">✓ Migration facile de dApps existantes</div>
+                    <div class="compat-item">✓ NFT standards (ERC-721, ERC-1155)</div>
+                </div>
+            </div>
+
+            <div class="network-specs">
+                <h3>Spécifications Réseau</h3>
+                <table class="specs-table">
+                    <tr>
+                        <td>Chain ID</td>
+                        <td>33669</td>
+                    </tr>
+                    <tr>
+                        <td>Currency Symbol</td>
+                        <td>DCS</td>
+                    </tr>
+                    <tr>
+                        <td>Block Gas Limit</td>
+                        <td>30,000,000</td>
+                    </tr>
+                    <tr>
+                        <td>Block Reward</td>
+                        <td>2.0 DCS (décroissance progressive)</td>
+                    </tr>
+                    <tr>
+                        <td>Difficulty Adjustment</td>
+                        <td>LWMA (Linearly Weighted Moving Average)</td>
+                    </tr>
+                    <tr>
+                        <td>Uncle Blocks</td>
+                        <td>Support (max 2 par bloc)</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 5: Tokenomics -->
+    <section id="tokenomics" class="content-section alt-bg">
+        <div class="container">
+            <h2 class="section-title">Tokenomics & Distribution</h2>
+
+            <div class="token-header">
+                <div class="token-identity">
+                    <h3>Token Natif: DUCROS (DCS)</h3>
+                    <p>Le token DCS est l'actif natif de la blockchain Ducros Chain. Il sert à:</p>
+                    <ul>
+                        <li>Payer les frais de transaction (gas)</li>
+                        <li>Récompenser les mineurs</li>
+                        <li>Participer à la gouvernance (futur)</li>
+                        <li>Déployer et interagir avec les smart contracts</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tokenomics-grid">
+                <div class="tokenomics-card">
+                    <h3>Supply & Inflation</h3>
+                    <table class="token-table">
+                        <tr>
+                            <td>Supply Initiale (Genesis)</td>
+                            <td><strong>100,000,000 DCS</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Premine (allocation initiale)</td>
+                            <td><strong>10,000,000 DCS (10%)</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Émission par bloc</td>
+                            <td><strong>2.0 DCS</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Réduction émission</td>
+                            <td>Tous les 2 ans (-25%)</td>
+                        </tr>
+                        <tr>
+                            <td>Supply Max Théorique</td>
+                            <td>~200,000,000 DCS</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="tokenomics-card">
+                    <h3>Distribution Initiale (Premine)</h3>
+                    <div class="distribution-chart">
+                        <div class="chart-item" style="--percentage: 40">
+                            <div class="chart-bar"></div>
+                            <div class="chart-label">
+                                <span class="label-name">ICO Public</span>
+                                <span class="label-value">40% (4M DCS)</span>
+                            </div>
+                        </div>
+                        <div class="chart-item" style="--percentage: 20">
+                            <div class="chart-bar"></div>
+                            <div class="chart-label">
+                                <span class="label-name">Treasury (SASU)</span>
+                                <span class="label-value">20% (2M DCS)</span>
+                            </div>
+                        </div>
+                        <div class="chart-item" style="--percentage: 15">
+                            <div class="chart-bar"></div>
+                            <div class="chart-label">
+                                <span class="label-name">Team & Créateur</span>
+                                <span class="label-value">15% (1.5M DCS)</span>
+                            </div>
+                        </div>
+                        <div class="chart-item" style="--percentage: 15">
+                            <div class="chart-bar"></div>
+                            <div class="chart-label">
+                                <span class="label-name">Réserve Liquidité</span>
+                                <span class="label-value">15% (1.5M DCS)</span>
+                            </div>
+                        </div>
+                        <div class="chart-item" style="--percentage: 10">
+                            <div class="chart-bar"></div>
+                            <div class="chart-label">
+                                <span class="label-name">Marketing & Partenariats</span>
+                                <span class="label-value">10% (1M DCS)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="vesting-schedule">
+                <h3>Vesting Schedule (Déblocage Progressif)</h3>
+                <table class="vesting-table">
+                    <thead>
+                        <tr>
+                            <th>Allocation</th>
+                            <th>Montant</th>
+                            <th>Vesting</th>
+                            <th>Détails</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>ICO Public</td>
+                            <td>4,000,000 DCS</td>
+                            <td>Immédiat (80%) + 6 mois (20%)</td>
+                            <td>80% débloqués au launch, 20% sur 6 mois</td>
+                        </tr>
+                        <tr>
+                            <td>Team & Créateur</td>
+                            <td>1,500,000 DCS</td>
+                            <td>24 mois linéaire</td>
+                            <td>Déblocage mensuel sur 2 ans</td>
+                        </tr>
+                        <tr>
+                            <td>Treasury (SASU)</td>
+                            <td>2,000,000 DCS</td>
+                            <td>12 mois linéaire</td>
+                            <td>Pour développement et infrastructure</td>
+                        </tr>
+                        <tr>
+                            <td>Liquidité</td>
+                            <td>1,500,000 DCS</td>
+                            <td>Immédiat</td>
+                            <td>Pools DEX (Uniswap, etc.)</td>
+                        </tr>
+                        <tr>
+                            <td>Marketing</td>
+                            <td>1,000,000 DCS</td>
+                            <td>18 mois linéaire</td>
+                            <td>Campagnes, listings, partenariats</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="dev-fee-section">
+                <h3>💰 Dev Fee: 5% de Redistribution Automatique</h3>
+                <div class="devfee-explanation">
+                    <p><strong>Mécanisme:</strong> Chaque transaction sur le réseau Ducros Chain inclut un <strong>Dev Fee de 5%</strong> automatiquement redistributé au Dev Fee Wallet.</p>
+
+                    <div class="devfee-details">
+                        <div class="devfee-card">
+                            <h4>Qu'est-ce que le Dev Fee?</h4>
+                            <p>Le Dev Fee est une pratique établie dans l'écosystème crypto (Zcash, Dash, etc.) qui assure la rémunération des développeurs et la maintenance à long terme du protocole.</p>
+                            <ul>
+                                <li>Prélevé automatiquement sur chaque transaction</li>
+                                <li>Transparence totale (on-chain)</li>
+                                <li>Allocation visible publiquement</li>
+                            </ul>
+                        </div>
+
+                        <div class="devfee-card">
+                            <h4>Utilisation du Dev Fee</h4>
+                            <ul>
+                                <li><strong>Développement:</strong> Salaires des devs, audits, maintenance</li>
+                                <li><strong>Infrastructure:</strong> Serveurs, RPC nodes, explorateurs</li>
+                                <li><strong>Sécurité:</strong> Bug bounties, audits externes</li>
+                                <li><strong>Recherche:</strong> Optimisations, nouvelles features</li>
+                            </ul>
+                        </div>
+
+                        <div class="devfee-card">
+                            <h4>Dev Fee Wallet</h4>
+                            <p><strong>Adresse publique:</strong> <code>0x0000000000000000000000000000000000000002</code></p>
+                            <p>⚠️ Cette adresse sera configurée avant le mainnet launch et sera auditée publiquement.</p>
+                        </div>
+                    </div>
+
+                    <div class="devfee-formula">
+                        <h4>Calcul du Dev Fee</h4>
+                        <div class="formula-box">
+                            <p><strong>Transaction Fee = Gas Used × Gas Price</strong></p>
+                            <p><strong>Dev Fee = Transaction Fee × 5%</strong></p>
+                            <p><strong>Miner Reward = Transaction Fee × 95%</strong></p>
+                        </div>
+                        <p class="formula-note">Le Dev Fee est prélevé AVANT distribution au mineur, garantissant ainsi la pérennité du financement.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="treasury-section">
+                <h3>🏦 Treasury System: 95% des Rewards de Mineurs Blacklistés</h3>
+                <div class="treasury-explanation">
+                    <p>Le <strong>Treasury System</strong> est une innovation majeure de Ducros Chain, permettant de financer le développement tout en protégeant le réseau.</p>
+
+                    <div class="treasury-mechanism">
+                        <h4>Fonctionnement</h4>
+                        <div class="mechanism-steps">
+                            <div class="step">
+                                <span class="step-number">1</span>
+                                <p><strong>Détection:</strong> Les mineurs suspects (botnets, malware) sont identifiés par comportement anormal</p>
+                            </div>
+                            <div class="step">
+                                <span class="step-number">2</span>
+                                <p><strong>Blacklist:</strong> L'adresse est ajoutée à la blacklist (processus transparent on-chain)</p>
+                            </div>
+                            <div class="step">
+                                <span class="step-number">3</span>
+                                <p><strong>Redistribution:</strong> 95% du block reward → Treasury, 5% → Dev Fee</p>
+                            </div>
+                            <div class="step">
+                                <span class="step-number">4</span>
+                                <p><strong>Transfert Hebdomadaire:</strong> Chaque dimanche, le Treasury transfère les fonds au wallet de la SASU</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="treasury-benefits">
+                        <h4>Avantages</h4>
+                        <div class="benefits-grid">
+                            <div class="benefit">
+                                <span class="benefit-icon">🛡️</span>
+                                <h5>Protection Réseau</h5>
+                                <p>Dissuade les acteurs malveillants en rendant leur activité non-rentable</p>
+                            </div>
+                            <div class="benefit">
+                                <span class="benefit-icon">💼</span>
+                                <h5>Financement Durable</h5>
+                                <p>Revenue récurrent pour développement et maintenance</p>
+                            </div>
+                            <div class="benefit">
+                                <span class="benefit-icon">⚖️</span>
+                                <h5>Justice Distributive</h5>
+                                <p>Les ressources volées sont réattribuées au bien commun</p>
+                            </div>
+                            <div class="benefit">
+                                <span class="benefit-icon">🔍</span>
+                                <h5>Transparence Totale</h5>
+                                <p>Tous les transferts sont visibles on-chain</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="treasury-address">
+                        <h4>Treasury Addresses</h4>
+                        <p><strong>Accumulation Address:</strong> <code>0x0000000000000000000000000000000000000001</code></p>
+                        <p><strong>SASU Owner Address:</strong> <code>0x0000000000000000000000000000000000000002</code></p>
+                        <p class="address-note">⚠️ Ces adresses seront configurées et publiées avant le mainnet launch.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 6: Treasury System (suite) -->
+    <section id="treasury-detail" class="content-section">
+        <div class="container">
+            <h2 class="section-title">Treasury System: Détails Techniques</h2>
+
+            <div class="treasury-flow">
+                <h3>Flux des Fonds</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step">
+                        <div class="flow-box miner">Mineur Légitime</div>
+                        <div class="flow-arrow">↓ Mine un bloc</div>
+                        <div class="flow-box reward">2.0 DCS Reward</div>
+                        <div class="flow-split">
+                            <div class="split-item">
+                                <div class="flow-arrow">95% →</div>
+                                <div class="flow-box">1.9 DCS au Mineur</div>
+                            </div>
+                            <div class="split-item">
+                                <div class="flow-arrow">5% →</div>
+                                <div class="flow-box">0.1 DCS à Treasury</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <div class="flow-box botnet">Mineur Blacklisté</div>
+                        <div class="flow-arrow">↓ Mine un bloc</div>
+                        <div class="flow-box reward">2.0 DCS Reward</div>
+                        <div class="flow-split">
+                            <div class="split-item">
+                                <div class="flow-arrow">0% →</div>
+                                <div class="flow-box error">0 DCS au Mineur</div>
+                            </div>
+                            <div class="split-item">
+                                <div class="flow-arrow">100% →</div>
+                                <div class="flow-box treasury">2.0 DCS à Treasury</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="treasury-usage">
+                <h3>Utilisation des Fonds Treasury</h3>
+                <div class="usage-grid">
+                    <div class="usage-card">
+                        <h4>Développement (40%)</h4>
+                        <ul>
+                            <li>Salaires équipe technique</li>
+                            <li>Développement core protocol</li>
+                            <li>Features & optimisations</li>
+                            <li>Maintenance code</li>
+                        </ul>
+                    </div>
+                    <div class="usage-card">
+                        <h4>Infrastructure (25%)</h4>
+                        <ul>
+                            <li>Serveurs & RPC nodes</li>
+                            <li>Block explorers</li>
+                            <li>CDN & bandwidth</li>
+                            <li>Backup & redundancy</li>
+                        </ul>
+                    </div>
+                    <div class="usage-card">
+                        <h4>Sécurité (20%)</h4>
+                        <ul>
+                            <li>Audits externes</li>
+                            <li>Bug bounties</li>
+                            <li>Pen-testing</li>
+                            <li>Monitoring & alerting</li>
+                        </ul>
+                    </div>
+                    <div class="usage-card">
+                        <h4>Adoption (15%)</h4>
+                        <ul>
+                            <li>Partenariats (Free, OVH)</li>
+                            <li>Marketing & communication</li>
+                            <li>Éducation & documentation</li>
+                            <li>Community building</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 7: RandomX -->
+    <section id="randomx" class="content-section alt-bg">
+        <div class="container">
+            <h2 class="section-title">Algorithme RandomX: PoW CPU-Optimized</h2>
+
+            <div class="randomx-intro">
+                <p>RandomX est un algorithme de Proof-of-Work conçu spécifiquement pour être <strong>résistant aux ASIC</strong> et optimisé pour les processeurs généralistes (CPU).</p>
+            </div>
+
+            <div class="randomx-features">
+                <h3>Caractéristiques Principales</h3>
+                <div class="features-grid-3">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <h4>Résistance ASIC</h4>
+                        <p>RandomX utilise des instructions CPU complexes (AES, multiplications 64-bit, etc.) impossibles à optimiser sur ASIC sans reproduire un CPU complet.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h4>Optimisation CPU</h4>
+                        <p>Exploitation maximale des features modernes des CPU: cache L1/L2/L3, pipeline, branch prediction, AES-NI.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎲</div>
+                        <h4>Génération Aléatoire</h4>
+                        <p>Création dynamique de programmes aléatoires pour chaque bloc, rendant la prédiction et l'optimisation hardware impossible.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="randomx-benefits">
+                <h3>Pourquoi RandomX pour Ducros?</h3>
+                <div class="benefits-list">
+                    <div class="benefit-item">
+                        <span class="check-icon">✓</span>
+                        <div class="benefit-content">
+                            <h4>Décentralisation Maximale</h4>
+                            <p>N'importe qui avec un CPU peut miner, sans besoin de matériel spécialisé. Cela garantit une distribution équitable du hashrate.</p>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <span class="check-icon">✓</span>
+                        <div class="benefit-content">
+                            <h4>Accessibilité</h4>
+                            <p>Mining possible sur: PC de bureau, laptops, NAS Synology, Freebox Delta/Pop, serveurs VPS, smartphones (Android/iOS).</p>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <span class="check-icon">✓</span>
+                        <div class="benefit-content">
+                            <h4>Consommation Énergétique Réduite</h4>
+                            <p>50W - 150W pour un CPU vs 1500W+ pour ASIC. Impact environnemental 10x inférieur.</p>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <span class="check-icon">✓</span>
+                        <div class="benefit-content">
+                            <h4>Sécurité Éprouvée</h4>
+                        <p>Utilisé par Monero depuis 2019 avec succès. Aucune attaque ASIC réussie à ce jour.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hashrate-estimates">
+                <h3>Estimations de Hashrate</h3>
+                <table class="hashrate-table">
+                    <thead>
+                        <tr>
+                            <th>Matériel</th>
+                            <th>Hashrate</th>
+                            <th>Consommation</th>
+                            <th>DCR/jour (estimé)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Intel Core i5 (moderne)</td>
+                            <td>3,000 H/s</td>
+                            <td>65W</td>
+                            <td>~2.5 DCS</td>
+                        </tr>
+                        <tr>
+                            <td>Intel Core i7 (moderne)</td>
+                            <td>6,000 H/s</td>
+                            <td>95W</td>
+                            <td>~5 DCS</td>
+                        </tr>
+                        <tr>
+                            <td>AMD Ryzen 5</td>
+                            <td>7,000 H/s</td>
+                            <td>65W</td>
+                            <td>~6 DCS</td>
+                        </tr>
+                        <tr>
+                            <td>AMD Ryzen 9</td>
+                            <td>15,000 H/s</td>
+                            <td>105W</td>
+                            <td>~13 DCS</td>
+                        </tr>
+                        <tr>
+                            <td>Freebox Delta/Pop</td>
+                            <td>1,500 H/s</td>
+                            <td>30W</td>
+                            <td>~1.2 DCS</td>
+                        </tr>
+                        <tr>
+                            <td>NAS Synology (4-core)</td>
+                            <td>2,000 H/s</td>
+                            <td>40W</td>
+                            <td>~1.7 DCS</td>
+                        </tr>
+                        <tr>
+                            <td>Smartphone (Android)</td>
+                            <td>500 H/s</td>
+                            <td>5-10W</td>
+                            <td>~0.4 DCS</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="table-note">* Estimations basées sur un hashrate réseau de 10 MH/s. Les valeurs réelles dépendront du hashrate total et de la difficulté.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 8: Anti-Botnet System -->
+    <section id="anti-botnet" class="content-section">
+        <div class="container">
+            <h2 class="section-title">Système Anti-Botnet & Blacklist</h2>
+
+            <div class="antibotnet-intro">
+                <p>Ducros Chain intègre un <strong>mécanisme unique de protection</strong> contre le mining malveillant via botnets et malwares. Ce système différencie radicalement Ducros de toutes les autres blockchains CPU.</p>
+            </div>
+
+            <div class="threat-overview">
+                <h3>La Menace des Botnets</h3>
+                <div class="threat-stats">
+                    <div class="stat-card">
+                        <div class="stat-number">60%+</div>
+                        <div class="stat-label">du hashrate Monero provient potentiellement de botnets (estimation industrie)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">Millions</div>
+                        <div class="stat-label">d'ordinateurs infectés mondialement par des crypto-miners malveillants</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">$0</div>
+                        <div class="stat-label">coût pour l'attaquant (machines volées)</div>
+                    </div>
+                </div>
+                <p class="threat-note">Les blockchains CPU existantes n'ont AUCUNE protection intégrée. Ducros change la donne.</p>
+            </div>
+
+            <div class="detection-system">
+                <h3>Système de Détection</h3>
+                <div class="detection-methods">
+                    <div class="method-card">
+                        <h4>🔍 Analyse Comportementale</h4>
+                        <ul>
+                            <li><strong>Pattern de Connexion:</strong> Multiples IPs courtes durées</li>
+                            <li><strong>Hashrate Suspect:</strong> 1000+ mineurs à 1-2 H/s chacun (typique botnet)</li>
+                            <li><strong>Géolocalisation:</strong> Distribution anormale (IPs résidentielles variées)</li>
+                            <li><strong>User-Agent:</strong> Détection de miners malware connus</li>
+                        </ul>
+                    </div>
+                    <div class="method-card">
+                        <h4>📊 Analyse Statistique</h4>
+                        <ul>
+                            <li><strong>Volume:</strong> Nombre de sous-mineurs pour une adresse</li>
+                            <li><strong>Constance:</strong> Mining 24/7 depuis machines domestiques</li>
+                            <li><strong>Corrélation:</strong> Cross-reference avec bases malware connues</li>
+                            <li><strong>Rapports:</strong> Signalements communauté (users infectés)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="blacklist-process">
+                <h3>Processus de Blacklist</h3>
+                <div class="process-timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker">1</div>
+                        <div class="timeline-content">
+                            <h4>Détection</h4>
+                            <p>Les nœuds détectent un pattern suspect. Collecte de preuves (logs, IPs, comportement).</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker">2</div>
+                        <div class="timeline-content">
+                            <h4>Validation Communautaire</h4>
+                            <p>Proposition publique avec preuves. Période de discussion 7-14 jours. Vote multi-sig (3/5 signers) ou communauté.</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker">3</div>
+                        <div class="timeline-content">
+                            <h4>Activation</h4>
+                            <p>Si approuvé, ajout à la blacklist on-chain. Prise d'effet immédiate au prochain bloc.</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker">4</div>
+                        <div class="timeline-content">
+                            <h4>Redirection</h4>
+                            <p>Mineur blacklisté reçoit 0% du reward. 100% redirigé vers Treasury (95%) + Dev Fee (5%).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="blacklist-governance">
+                <h3>Gouvernance de la Blacklist</h3>
+                <p>La gestion de la blacklist suit un processus <strong>transparent et décentralisé</strong>:</p>
+                <div class="governance-options">
+                    <div class="governance-option">
+                        <h4>Option 1: Multi-Sig (Phase initiale)</h4>
+                        <p>5 signers de confiance (3/5 requis)</p>
+                        <ul>
+                            <li>Créateur du protocole</li>
+                            <li>Développeur principal</li>
+                            <li>3 membres élus de la communauté</li>
+                        </ul>
+                        <p><strong>Délai:</strong> < 24 heures pour blacklister</p>
+                    </div>
+                    <div class="governance-option">
+                        <h4>Option 2: Vote On-Chain (Phase mature)</h4>
+                        <p>Vote communautaire pondéré par stake ou hashrate</p>
+                        <ul>
+                            <li>Proposition ouverte (avec preuves)</li>
+                            <li>Période de vote: 7 jours</li>
+                            <li>Quorum: 51% minimum</li>
+                            <li>Exécution automatique</li>
+                        </ul>
+                        <p><strong>Délai:</strong> 7 jours</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="important-notes">
+                <h3>⚠️ Points Importants</h3>
+                <div class="notes-grid">
+                    <div class="note-card">
+                        <h4>Transactions NON affectées</h4>
+                        <p>La blacklist concerne UNIQUEMENT les mining rewards. Les adresses blacklistées peuvent toujours:</p>
+                        <ul>
+                            <li>Envoyer/recevoir des transactions</li>
+                            <li>Utiliser des smart contracts</li>
+                            <li>Participer à la DeFi</li>
+                        </ul>
+                    </div>
+                    <div class="note-card">
+                        <h4>Réversibilité</h4>
+                        <p>Une adresse peut être <strong>retirée de la blacklist</strong> via le même processus (multi-sig ou vote) si:</p>
+                        <ul>
+                            <li>Erreur de détection (faux positif)</li>
+                            <li>Botnet nettoyé / machines désinfectées</li>
+                            <li>Accord avec l'opérateur</li>
+                        </ul>
+                    </div>
+                    <div class="note-card">
+                        <h4>Transparence Totale</h4>
+                        <p>Toutes les décisions de blacklist sont:</p>
+                        <ul>
+                            <li>Enregistrées on-chain</li>
+                            <li>Justifiées publiquement (GitHub issues)</li>
+                            <li>Auditables par tous</li>
+                            <li>Avec preuves accessibles</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 9: Infrastructure Technique -->
+    <section id="infrastructure" class="content-section alt-bg">
+        <div class="container">
+            <h2 class="section-title">Infrastructure Technique & Déploiement</h2>
+
+            <div class="infrastructure-overview">
+                <p>Ducros Chain s'appuie sur une infrastructure robuste et distribuée garantissant disponibilité, performance et sécurité.</p>
+            </div>
+
+            <div class="infra-components">
+                <h3>Composants Infrastructure</h3>
+                <div class="infra-grid">
+                    <div class="infra-card">
+                        <h4>🖥️ Full Nodes</h4>
+                        <p><strong>Rôle:</strong> Validation complète de la blockchain, consensus, minage</p>
+                        <p><strong>Requis minimum:</strong></p>
+                        <ul>
+                            <li>CPU: 4 cores (Ryzen 5 / Intel i5+)</li>
+                            <li>RAM: 8GB minimum, 16GB recommandé</li>
+                            <li>Storage: 500GB SSD (croissance ~50GB/an)</li>
+                            <li>Bandwidth: 100 Mbps, illimité</li>
+                        </ul>
+                    </div>
+
+                    <div class="infra-card">
+                        <h4>⚡ RPC Nodes</h4>
+                        <p><strong>Rôle:</strong> API publique pour wallets et dApps</p>
+                        <p><strong>Requis recommandé:</strong></p>
+                        <ul>
+                            <li>CPU: 8 cores</li>
+                            <li>RAM: 32GB</li>
+                            <li>Storage: 1TB NVMe SSD</li>
+                            <li>Bandwidth: 1 Gbps</li>
+                        </ul>
+                        <p><strong>Redondance:</strong> 5+ nodes géo-distribués</p>
+                    </div>
+
+                    <div class="infra-card">
+                        <h4>🔍 Block Explorer</h4>
+                        <p><strong>Service:</strong> Interface web transparence blockchain</p>
+                        <p><strong>Features:</strong></p>
+                        <ul>
+                            <li>Exploration blocks/transactions/adresses</li>
+                            <li>Statistiques réseau temps réel</li>
+                            <li>API publique</li>
+                            <li>Rich lists, charts, analytics</li>
+                        </ul>
+                    </div>
+
+                    <div class="infra-card">
+                        <h4>🏢 Infrastructure SASU</h4>
+                        <p><strong>Aquí oï (France):</strong></p>
+                        <ul>
+                            <li>Serveurs dédiés OVH/Scaleway</li>
+                            <li>Redondance multi-datacenters</li>
+                            <li>Backup quotidien blockchain</li>
+                            <li>Monitoring 24/7</li>
+                            <li>Support technique communauté</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="partnerships">
+                <h3>Partenariats Stratégiques</h3>
+                <div class="partner-card">
+                    <h4>🇫🇷 Free (ISP) - En Discussion</h4>
+                    <p>Partenariat majeur en cours de négociation avec Free (Iliad Group) pour:</p>
+                    <ul>
+                        <li><strong>Mining Freebox:</strong> Activation mining RandomX sur Freebox Delta/Pop (millions d'équipements)</li>
+                        <li><strong>Distribution:</strong> Adoption massive instantanée auprès de 13M+ abonnés Free</li>
+                        <li><strong>Revenus partagés:</strong> % des rewards pour Free, incentivant l'activation</li>
+                        <li><strong>Impact:</strong> Décentralisation exceptionnelle du hashrate, réseau inégalé</li>
+                    </ul>
+                    <p class="partner-note">⚠️ <strong>Statut:</strong> Discussions en cours, non finalisé. Ce partenariat n'est pas garanti.</p>
+                </div>
+            </div>
+
+            <div class="deployment-plan">
+                <h3>Plan de Déploiement</h3>
+                <div class="deployment-phases">
+                    <div class="phase-card">
+                        <h4>Phase 0: Préparation (Q4 2025)</h4>
+                        <ul>
+                            <li>Setup infrastructure datacenter</li>
+                            <li>Déploiement bootnode seeds</li>
+                            <li>Configuration RPC publics</li>
+                            <li>Lancement block explorer</li>
+                        </ul>
+                    </div>
+                    <div class="phase-card">
+                        <h4>Phase 1: Genesis (Q1 2026)</h4>
+                        <ul>
+                            <li>Mainnet launch</li>
+                            <li>Distribution premine via ICO</li>
+                            <li>Activation mining public</li>
+                            <li>Listing premiers exchanges</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 10: Gouvernance -->
+    <section id="governance" class="content-section">
+        <div class="container">
+            <h2 class="section-title">Gouvernance & Évolution du Protocole</h2>
+
+            <div class="governance-intro">
+                <p>La gouvernance de Ducros Chain évolue progressivement d'un modèle centralisé initial (nécessaire au lancement) vers une <strong>décentralisation complète</strong> gérée par la communauté.</p>
+            </div>
+
+            <div class="governance-phases">
+                <h3>Phases de Gouvernance</h3>
+                <div class="phases-timeline">
+                    <div class="phase-item">
+                        <div class="phase-header">
+                            <span class="phase-badge">Phase 1</span>
+                            <h4>Gouvernance Centralisée (0-12 mois)</h4>
+                        </div>
+                        <div class="phase-content">
+                            <p><strong>Responsable:</strong> Aquí oï (SASU) et créateur Alexandre Ducros</p>
+                            <p><strong>Décisions:</strong></p>
+                            <ul>
+                                <li>Mises à jour protocole critiques</li>
+                                <li>Gestion blacklist anti-botnet</li>
+                                <li>Allocation fonds Treasury</li>
+                                <li>Partenariats stratégiques</li>
+                            </ul>
+                            <p><strong>Justification:</strong> Réactivité nécessaire en phase de lancement, correction bugs critiques, ajustements rapides.</p>
+                        </div>
+                    </div>
+
+                    <div class="phase-item">
+                        <div class="phase-header">
+                            <span class="phase-badge">Phase 2</span>
+                            <h4>Gouvernance Hybride (12-24 mois)</h4>
+                        </div>
+                        <div class="phase-content">
+                            <p><strong>Responsables:</strong> Multi-sig 5 membres (3/5 requis)</p>
+                            <ul>
+                                <li>Créateur Alexandre Ducros</li>
+                                <li>Lead Developer</li>
+                                <li>3 membres élus communauté (vote DCS holders)</li>
+                            </ul>
+                            <p><strong>Décisions requérant vote:</strong></p>
+                            <ul>
+                                <li>Ajout/retrait blacklist</li>
+                                <li>Dépenses Treasury > 100k€</li>
+                                <li>Hard forks non-critiques</li>
+                                <li>Partenariats majeurs</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="phase-item">
+                        <div class="phase-header">
+                            <span class="phase-badge">Phase 3</span>
+                            <h4>Gouvernance On-Chain Décentralisée (24+ mois)</h4>
+                        </div>
+                        <div class="phase-content">
+                            <p><strong>Système:</strong> DAO (Decentralized Autonomous Organization)</p>
+                            <p><strong>Mécanisme:</strong></p>
+                            <ul>
+                                <li>Propositions ouvertes (smart contract)</li>
+                                <li>Vote pondéré par DCS stake</li>
+                                <li>Quorum 51% minimum</li>
+                                <li>Exécution automatique on-chain</li>
+                            </ul>
+                            <p><strong>Portée:</strong></p>
+                            <ul>
+                                <li>Toutes décisions protocole</li>
+                                <li>Allocation complète Treasury</li>
+                                <li>Élection/révocation signers multi-sig</li>
+                                <li>Hard forks (activation automatique)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="governance-mechanisms">
+                <h3>Mécanismes de Vote</h3>
+                <div class="vote-grid">
+                    <div class="vote-card">
+                        <h4>🗳️ Vote Token-Weighted</h4>
+                        <p><strong>Poids:</strong> 1 DCS staké = 1 voix</p>
+                        <p><strong>Avantage:</strong> Simple, résistant Sybil</p>
+                        <p><strong>Inconvénient:</strong> Favorise gros holders (whales)</p>
+                    </div>
+                    <div class="vote-card">
+                        <h4>⚒️ Vote Hashrate-Weighted</h4>
+                        <p><strong>Poids:</strong> Proportionnel au hashrate contribué</p>
+                        <p><strong>Avantage:</strong> Récompense mineurs (sécurité réseau)</p>
+                        <p><strong>Inconvénient:</strong> Requiert preuve de hashrate</p>
+                    </div>
+                    <div class="vote-card">
+                        <h4>🔀 Vote Quadratic</h4>
+                        <p><strong>Poids:</strong> √(DCS staké) pour limiter influence whales</p>
+                        <p><strong>Avantage:</strong> Plus équitable, limite plutocracy</p>
+                        <p><strong>Inconvénient:</strong> Complexité, possibilité split stake</p>
+                    </div>
+                </div>
+                <p class="governance-note">Le mécanisme final sera déterminé en Phase 2 après consultation communauté.</p>
+            </div>
+
+            <div class="proposal-process">
+                <h3>Processus de Proposition (DAO Phase 3)</h3>
+                <div class="process-steps">
+                    <div class="step-box">
+                        <span class="step-num">1</span>
+                        <h5>Draft Discussion</h5>
+                        <p>Proposition sur forum/GitHub (14 jours débat)</p>
+                    </div>
+                    <div class="step-box">
+                        <span class="step-num">2</span>
+                        <h5>Soumission On-Chain</h5>
+                        <p>Smart contract (coût: 1000 DCS stake minimum)</p>
+                    </div>
+                    <div class="step-box">
+                        <span class="step-num">3</span>
+                        <h5>Vote Period</h5>
+                        <p>7 jours vote, quorum 51%</p>
+                    </div>
+                    <div class="step-box">
+                        <span class="step-num">4</span>
+                        <h5>Exécution</h5>
+                        <p>Si approuvé: exécution automatique après 48h timelock</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 11: ICO (MiCA Compliant) -->
+    <section id="ico" class="content-section alt-bg">
+        <div class="container">
+            <h2 class="section-title">ICO (Initial Coin Offering) - Conforme MiCA 2024</h2>
+
+            <div class="ico-warning">
+                <h3>⚠️ AVERTISSEMENT RÉGLEMENTAIRE IMPORTANT</h3>
+                <div class="warning-content">
+                    <p>Cette Initial Coin Offering (ICO) est organisée conformément au règlement européen <strong>MiCA (Markets in Crypto-Assets)</strong> entré en vigueur en 2024. Aquí oï (SASU immatriculée en France) se conforme aux exigences de transparence, de protection des investisseurs et de prévention des risques.</p>
+                    <p><strong>IMPORTANT:</strong> L'acquisition de tokens DCS comporte des <strong>risques substantiels</strong>, incluant la perte totale du capital investi. Les crypto-actifs sont hautement volatils et ne sont pas garantis. Les performances passées ne préjugent en rien des performances futures.</p>
+                </div>
+            </div>
+
+            <div class="ico-details">
+                <h3>Conditions de l'ICO</h3>
+                <div class="ico-grid">
+                    <div class="ico-card">
+                        <h4>📅 Calendrier</h4>
+                        <table class="ico-table">
+                            <tr>
+                                <td>Phase Privée (Seed)</td>
+                                <td>Q4 2025</td>
+                            </tr>
+                            <tr>
+                                <td>ICO Publique</td>
+                                <td>Q1 2026 (30 jours)</td>
+                            </tr>
+                            <tr>
+                                <td>Mainnet Launch</td>
+                                <td>Q1 2026 (post-ICO)</td>
+                            </tr>
+                            <tr>
+                                <td>Listing DEX/CEX</td>
+                                <td>Q2 2026</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="ico-card">
+                        <h4>💰 Levée de Fonds</h4>
+                        <table class="ico-table">
+                            <tr>
+                                <td>Hard Cap (maximum)</td>
+                                <td><strong>2,000,000 EUR</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Soft Cap (minimum)</td>
+                                <td><strong>500,000 EUR</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Tokens Disponibles ICO</td>
+                                <td><strong>4,000,000 DCS (40% premine)</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Prix ICO</td>
+                                <td><strong>0.50 EUR / DCS</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="ico-card">
+                        <h4>💳 Moyens de Paiement</h4>
+                        <ul>
+                            <li>✓ ETH (Ethereum)</li>
+                            <li>✓ USDT/USDC (stablecoins)</li>
+                            <li>✓ BTC (Bitcoin)</li>
+                            <li>✓ EUR (virement SEPA - KYC requis)</li>
+                        </ul>
+                        <p class="payment-note"><strong>KYC/AML:</strong> Obligatoire pour investissements > 1000 EUR (conformité MiCA)</p>
+                    </div>
+
+                    <div class="ico-card">
+                        <h4>🎁 Bonus Early Bird</h4>
+                        <ul>
+                            <li>Semaine 1: +20% bonus</li>
+                            <li>Semaine 2: +15% bonus</li>
+                            <li>Semaine 3: +10% bonus</li>
+                            <li>Semaine 4: +5% bonus</li>
+                        </ul>
+                        <p class="bonus-note">Les bonus sont soumis à un vesting de 6 mois (déblocage linéaire).</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="funds-allocation">
+                <h3>Allocation des Fonds Levés</h3>
+                <div class="allocation-chart">
+                    <div class="allocation-item" style="--alloc-percent: 35">
+                        <div class="alloc-bar"></div>
+                        <div class="alloc-label">
+                            <span class="alloc-name">Développement & Équipe</span>
+                            <span class="alloc-value">35% (700k EUR)</span>
+                        </div>
+                        <p class="alloc-desc">Salaires devs, audits code, maintenance</p>
+                    </div>
+                    <div class="allocation-item" style="--alloc-percent: 25">
+                        <div class="alloc-bar"></div>
+                        <div class="alloc-label">
+                            <span class="alloc-name">Infrastructure & Serveurs</span>
+                            <span class="alloc-value">25% (500k EUR)</span>
+                        </div>
+                        <p class="alloc-desc">Datacenters, RPC nodes, explorer, bandwidth</p>
+                    </div>
+                    <div class="allocation-item" style="--alloc-percent: 20">
+                        <div class="alloc-bar"></div>
+                        <div class="alloc-label">
+                            <span class="alloc-name">Marketing & Adoption</span>
+                            <span class="alloc-value">20% (400k EUR)</span>
+                        </div>
+                        <p class="alloc-desc">Campagnes pub, partenariats (Free, etc.), listings</p>
+                    </div>
+                    <div class="allocation-item" style="--alloc-percent: 15">
+                        <div class="alloc-bar"></div>
+                        <div class="alloc-label">
+                            <span class="alloc-name">Liquidité (DEX/CEX)</span>
+                            <span class="alloc-value">15% (300k EUR)</span>
+                        </div>
+                        <p class="alloc-desc">Pools Uniswap, market making, listings CEX</p>
+                    </div>
+                    <div class="allocation-item" style="--alloc-percent: 5">
+                        <div class="alloc-bar"></div>
+                        <div class="alloc-label">
+                            <span class="alloc-name">Légal & Compliance</span>
+                            <span class="alloc-value">5% (100k EUR)</span>
+                        </div>
+                        <p class="alloc-desc">Avocats, conformité MiCA, réglementation</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ico-risks">
+                <h3>⚠️ FACTEURS DE RISQUE (Conformité MiCA)</h3>
+                <div class="risks-list">
+                    <div class="risk-item high">
+                        <span class="risk-level">RISQUE ÉLEVÉ</span>
+                        <h4>Perte Totale du Capital</h4>
+                        <p>Le projet peut échouer (technique, adoption, réglementation). Les tokens peuvent perdre toute valeur. Ne jamais investir plus que ce que vous pouvez perdre.</p>
+                    </div>
+                    <div class="risk-item high">
+                        <span class="risk-level">RISQUE ÉLEVÉ</span>
+                        <h4>Volatilité Extrême</h4>
+                        <p>Les crypto-actifs sont extrêmement volatils. Le prix du DCS peut fluctuer de ±50% en 24h. Aucune garantie de prix plancher.</p>
+                    </div>
+                    <div class="risk-item medium">
+                        <span class="risk-level">RISQUE MOYEN</span>
+                        <h4>Liquidité Limitée</h4>
+                        <p>Listing exchanges non garanti. Possibilité de ne pas pouvoir vendre vos tokens ou à des prix très défavorables.</p>
+                    </div>
+                    <div class="risk-item medium">
+                        <span class="risk-level">RISQUE MOYEN</span>
+                        <h4>Risques Techniques</h4>
+                        <p>Bugs critiques, failles de sécurité (exploits, 51% attacks), échec consensus RandomX, problèmes scalabilité.</p>
+                    </div>
+                    <div class="risk-item medium">
+                        <span class="risk-level">RISQUE MOYEN</span>
+                        <h4>Risques Réglementaires</h4>
+                        <p>Évolution réglementation crypto (interdictions, taxation excessive). MiCA peut évoluer et imposer contraintes supplémentaires.</p>
+                    </div>
+                    <div class="risk-item low">
+                        <span class="risk-level">RISQUE FAIBLE</span>
+                        <h4>Risques de Marché</h4>
+                        <p>Compétition (nouvelles blockchains CPU), bear market crypto généralisé, perte d'intérêt investisseurs.</p>
+                    </div>
+                </div>
+                <p class="risk-disclaimer"><strong>IMPORTANT:</strong> Cette liste n'est pas exhaustive. Consultez des conseillers financiers, juridiques et fiscaux indépendants avant tout investissement.</p>
+            </div>
+
+            <div class="refund-policy">
+                <h3>🔄 Politique de Remboursement</h3>
+                <div class="refund-content">
+                    <p><strong>Si Soft Cap NON atteint (< 500k EUR):</strong></p>
+                    <ul>
+                        <li>Remboursement automatique à 100% de tous les investisseurs</li>
+                        <li>Smart contract garantit les fonds (escrow)</li>
+                        <li>Délai: 30 jours après fin ICO</li>
+                    </ul>
+                    <p><strong>Si Soft Cap atteint:</strong></p>
+                    <ul>
+                        <li>Aucun remboursement possible (investissement définitif)</li>
+                        <li>Tokens distribués selon vesting schedule</li>
+                        <li>Mainnet launch garanti</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 12: Cadre Légal -->
+    <section id="legal" class="content-section">
+        <div class="container">
+            <h2 class="section-title">Cadre Légal & Conformité</h2>
+
+            <div class="legal-entity">
+                <h3>🏢 Entité Légale</h3>
+                <div class="entity-card">
+                    <h4>Aquí oï</h4>
+                    <table class="entity-table">
+                        <tr>
+                            <td>Forme Juridique</td>
+                            <td><strong>SASU (Société par Actions Simplifiée Unipersonnelle)</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Pays</td>
+                            <td><strong>France 🇫🇷</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Président & Fondateur</td>
+                            <td><strong>Alexandre Ducros</strong></td>
+                        </tr>
+                        <tr>
+                            <td>SIREN</td>
+                            <td><em>[À compléter après immatriculation]</em></td>
+                        </tr>
+                        <tr>
+                            <td>Siège Social</td>
+                            <td><em>[À compléter]</em></td>
+                        </tr>
+                        <tr>
+                            <td>Capital Social</td>
+                            <td>10,000 EUR (minimum légal)</td>
+                        </tr>
+                    </table>
+                    <p class="entity-note">⚠️ <strong>Statut:</strong> SASU en cours de création (Q4 2025). Les informations seront mises à jour après immatriculation officielle.</p>
+                </div>
+            </div>
+
+            <div class="mica-compliance">
+                <h3>📜 Conformité MiCA (Markets in Crypto-Assets) 2024</h3>
+                <div class="mica-overview">
+                    <p>Le règlement MiCA établit un <strong>cadre réglementaire harmonisé</strong> pour les crypto-actifs dans l'Union Européenne. Aquí oï s'engage à respecter toutes les exigences MiCA:</p>
+                </div>
+                <div class="mica-requirements">
+                    <div class="mica-req">
+                        <span class="req-icon">✓</span>
+                        <div class="req-content">
+                            <h4>Transparence & Information</h4>
+                            <p>Publication d'un whitepaper détaillé (ce document), mis à jour régulièrement. Disclosure complète des risques, de l'équipe, de l'utilisation des fonds.</p>
+                        </div>
+                    </div>
+                    <div class="mica-req">
+                        <span class="req-icon">✓</span>
+                        <div class="req-content">
+                            <h4>Protection des Investisseurs</h4>
+                            <p>Avertissements clairs sur les risques. Interdiction de pratiques trompeuses. Droit de rétractation (si soft cap non atteint).</p>
+                        </div>
+                    </div>
+                    <div class="mica-req">
+                        <span class="req-icon">✓</span>
+                        <div class="req-content">
+                            <h4>KYC/AML (Lutte Anti-Blanchiment)</h4>
+                            <p>Vérification d'identité obligatoire pour investissements > 1000 EUR. Conformité directive 5AMLD européenne.</p>
+                        </div>
+                    </div>
+                    <div class="mica-req">
+                        <span class="req-icon">✓</span>
+                        <div class="req-content">
+                            <h4>Garde des Fonds (Escrow)</h4>
+                            <p>Fonds ICO sécurisés dans smart contract audité. Remboursement automatique si soft cap non atteint.</p>
+                        </div>
+                    </div>
+                    <div class="mica-req">
+                        <span class="req-icon">✓</span>
+                        <div class="req-content">
+                            <h4>Gouvernance & Reporting</h4>
+                            <p>Rapports financiers annuels. Transparence allocation fonds Treasury. Audits externes réguliers.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="legal-status">
+                <h3>🔖 Statut Juridique des Tokens DCS</h3>
+                <div class="status-content">
+                    <p><strong>Classification MiCA:</strong> DCS est classé comme <strong>"Utility Token"</strong> (token utilitaire), et NON comme valeur mobilière.</p>
+                    <p><strong>Utilités du DCS:</strong></p>
+                    <ul>
+                        <li>Paiement des frais de transaction (gas)</li>
+                        <li>Accès au réseau blockchain Ducros</li>
+                        <li>Déploiement et exécution de smart contracts</li>
+                        <li>Participation à la gouvernance (future DAO)</li>
+                    </ul>
+                    <p class="status-warning">⚠️ <strong>IMPORTANT:</strong> Les tokens DCS <strong>ne confèrent AUCUN droit de propriété</strong> sur Aquí oï (SASU), aucun dividende, aucune part de bénéfices. Ce ne sont PAS des titres financiers.</p>
+                </div>
+            </div>
+
+            <div class="taxation">
+                <h3>💼 Fiscalité (France)</h3>
+                <div class="tax-info">
+                    <p><strong>Pour les investisseurs français:</strong></p>
+                    <ul>
+                        <li><strong>Plus-values crypto:</strong> Flat tax 30% (12.8% IR + 17.2% prélèvements sociaux)</li>
+                        <li><strong>Déclaration:</strong> Obligatoire (formulaire 2086 + 2042 C)</li>
+                        <li><strong>Exonération:</strong> Cessions annuelles < 305 EUR</li>
+                    </ul>
+                    <p class="tax-note">⚠️ La fiscalité varie selon les pays. Consultez un conseiller fiscal local.</p>
+                </div>
+            </div>
+
+            <div class="legal-disclaimers">
+                <h3>⚖️ Disclaimers Légaux</h3>
+                <div class="disclaimer-box">
+                    <h4>Aucune Garantie</h4>
+                    <p>Ce whitepaper est fourni "tel quel" sans aucune garantie. Aquí oï ne garantit pas le succès du projet, le développement de toutes les features mentionnées, le prix futur du DCS, ou le listing sur des exchanges.</p>
+                </div>
+                <div class="disclaimer-box">
+                    <h4>Non-Offre aux USA</h4>
+                    <p>Cette ICO <strong>n'est PAS disponible</strong> aux résidents des États-Unis, de Chine, ou de tout pays où les ICO sont interdites. Vérifiez la réglementation locale avant de participer.</p>
+                </div>
+                <div class="disclaimer-box">
+                    <h4>Modification du Whitepaper</h4>
+                    <p>Ce document peut être mis à jour. Les investisseurs seront notifiés des changements majeurs. La version à jour est toujours disponible sur ducroschain.io/whitepaper</p>
+                </div>
+                <div class="disclaimer-box">
+                    <h4>Responsabilité Limitée</h4>
+                    <p>Aquí oï et ses dirigeants ne peuvent être tenus responsables des pertes financières résultant de l'investissement dans DCS, sauf en cas de faute lourde ou intentionnelle prouvée.</p>
+                </div>
+            </div>
+
+            <div class="contact-legal">
+                <h3>📧 Contact Légal & Compliance</h3>
+                <p><strong>Email:</strong> legal@ducroschain.io</p>
+                <p><strong>Compliance Officer:</strong> [À désigner]</p>
+                <p>Pour toute question réglementaire, conformité MiCA, ou réclamation.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 13: Roadmap -->
+    <section id="roadmap" class="content-section alt-bg">
+        <div class="container">
+            <h2 class="section-title">Roadmap & Stratégie d'Adoption</h2>
+
+            <div class="roadmap-intro">
+                <p>Le développement de Ducros Chain suit un plan structuré en 4 phases principales, de la préparation au déploiement global.</p>
+            </div>
+
+            <div class="roadmap-timeline">
+                <div class="timeline-phase">
+                    <div class="phase-marker">
+                        <span class="phase-icon">🔧</span>
+                        <h3>Phase 0: Préparation</h3>
+                        <span class="phase-date">Q4 2025</span>
+                    </div>
+                    <div class="phase-tasks">
+                        <div class="task done">✓ Fork Go-Ethereum</div>
+                        <div class="task done">✓ Intégration RandomX consensus</div>
+                        <div class="task done">✓ Développement Treasury System</div>
+                        <div class="task done">✓ Anti-Botnet blacklist</div>
+                        <div class="task current">→ Audits sécurité externes</div>
+                        <div class="task">○ Testnet public (beta testing)</div>
+                        <div class="task">○ Création SASU Aquí oï</div>
+                        <div class="task">○ Préparation ICO (smart contracts)</div>
+                    </div>
+                </div>
+
+                <div class="timeline-phase">
+                    <div class="phase-marker">
+                        <span class="phase-icon">🚀</span>
+                        <h3>Phase 1: Lancement</h3>
+                        <span class="phase-date">Q1 2026</span>
+                    </div>
+                    <div class="phase-tasks">
+                        <div class="task">○ ICO Public (30 jours)</div>
+                        <div class="task">○ Mainnet Genesis Block</div>
+                        <div class="task">○ Distribution premine (ICO participants)</div>
+                        <div class="task">○ Lancement Block Explorer</div>
+                        <div class="task">○ RPC nodes publics</div>
+                        <div class="task">○ Wallet officiel (desktop + mobile)</div>
+                        <div class="task">○ Documentation complète</div>
+                        <div class="task">○ Community building (Discord, Telegram)</div>
+                    </div>
+                </div>
+
+                <div class="timeline-phase">
+                    <div class="phase-marker">
+                        <span class="phase-icon">📈</span>
+                        <h3>Phase 2: Adoption</h3>
+                        <span class="phase-date">Q2-Q4 2026</span>
+                    </div>
+                    <div class="phase-tasks">
+                        <div class="task">○ Listing DEX (Uniswap, PancakeSwap)</div>
+                        <div class="task">○ Listing CEX Tier 2 (Gate.io, MEXC)</div>
+                        <div class="task">○ Partenariat Free (mining Freebox)</div>
+                        <div class="task">○ SDK développeur (Web3.js compatible)</div>
+                        <div class="task">○ Premiers dApps (DEX, NFT marketplace)</div>
+                        <div class="task">○ Intégration MetaMask</div>
+                        <div class="task">○ Campagnes marketing France</div>
+                        <div class="task">○ Participation conférences crypto</div>
+                        <div class="task">○ Bug Bounty Program (10k EUR+)</div>
+                    </div>
+                </div>
+
+                <div class="timeline-phase">
+                    <div class="phase-marker">
+                        <span class="phase-icon">🌍</span>
+                        <h3>Phase 3: Expansion</h3>
+                        <span class="phase-date">2027+</span>
+                    </div>
+                    <div class="phase-tasks">
+                        <div class="task">○ Gouvernance DAO on-chain</div>
+                        <div class="task">○ Layer 2 solutions (rollups)</div>
+                        <div class="task">○ Cross-chain bridges (Ethereum, BSC)</div>
+                        <div class="task">○ Partenariats ISP européens (expansion)</div>
+                        <div class="task">○ Listing CEX Tier 1 (Binance, Coinbase)</div>
+                        <div class="task">○ Écosystème DeFi mature</div>
+                        <div class="task">○ Support mobile mining (iOS/Android)</div>
+                        <div class="task">○ Adoption entreprise (B2B use cases)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="adoption-strategy">
+                <h3>🎯 Stratégie d'Adoption: Partenariat Free</h3>
+                <div class="strategy-content">
+                    <p>Le <strong>partenariat Free</strong> (en négociation) est la pierre angulaire de notre stratégie d'adoption massive:</p>
+                    <div class="strategy-benefits">
+                        <div class="benefit-box">
+                            <h4>📊 Impact Quantitatif</h4>
+                            <ul>
+                                <li><strong>13 millions+</strong> abonnés Free en France</li>
+                                <li><strong>~3 millions</strong> Freebox Delta/Pop compatibles mining</li>
+                                <li>Potentiel: <strong>100,000+</strong> mineurs actifs instantanément</li>
+                                <li>Hashrate initial: <strong>150+ MH/s</strong> (décentralisation inégalée)</li>
+                            </ul>
+                        </div>
+                        <div class="benefit-box">
+                            <h4>💡 Modèle Économique</h4>
+                            <ul>
+                                <li>Free active mining opt-in pour ses abonnés</li>
+                                <li>Revenue sharing: 10% des rewards DCS pour Free</li>
+                                <li>Abonnés gagnent du DCS passivement</li>
+                                <li>Win-win: adoption massive + revenus Free</li>
+                            </ul>
+                        </div>
+                        <div class="benefit-box">
+                            <h4>🚀 Effet Réseau</h4>
+                            <ul>
+                                <li>Décentralisation extrême (millions de nœuds)</li>
+                                <li>Sécurité renforcée (51% attack impossible)</li>
+                                <li>Visibilité médiatique majeure</li>
+                                <li>Légitimation par association (marque Free)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <p class="strategy-note">⚠️ <strong>Statut:</strong> Discussions en cours. Partenariat non finalisé. L'échec de ce partenariat n'empêche pas le projet mais ralentira l'adoption initiale.</p>
+                </div>
+            </div>
+
+            <div class="kpis">
+                <h3>📊 KPIs & Objectifs</h3>
+                <table class="kpi-table">
+                    <thead>
+                        <tr>
+                            <th>Métrique</th>
+                            <th>6 mois</th>
+                            <th>12 mois</th>
+                            <th>24 mois</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Mineurs Actifs</td>
+                            <td>5,000+</td>
+                            <td>50,000+</td>
+                            <td>200,000+</td>
+                        </tr>
+                        <tr>
+                            <td>Hashrate Réseau</td>
+                            <td>50 MH/s</td>
+                            <td>500 MH/s</td>
+                            <td>2 GH/s</td>
+                        </tr>
+                        <tr>
+                            <td>Transactions/jour</td>
+                            <td>10,000</td>
+                            <td>100,000</td>
+                            <td>500,000</td>
+                        </tr>
+                        <tr>
+                            <td>dApps Déployées</td>
+                            <td>10</td>
+                            <td>50</td>
+                            <td>200</td>
+                        </tr>
+                        <tr>
+                            <td>Market Cap</td>
+                            <td>5M EUR</td>
+                            <td>25M EUR</td>
+                            <td>100M EUR</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="kpi-note">* Objectifs indicatifs, non garantis. Dépendent de l'adoption, marché crypto, partenariats.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 14: Annexes Techniques -->
+    <section id="annexes" class="content-section">
+        <div class="container">
+            <h2 class="section-title">Annexes Techniques</h2>
+
+            <div class="annex-section">
+                <h3>A. Paramètres Blockchain Détaillés</h3>
+                <table class="params-table">
+                    <thead>
+                        <tr>
+                            <th>Paramètre</th>
+                            <th>Valeur</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Chain ID</td>
+                            <td>33669</td>
+                            <td>Identifiant unique réseau</td>
+                        </tr>
+                        <tr>
+                            <td>Block Time Target</td>
+                            <td>~13 secondes</td>
+                            <td>Temps moyen entre blocs</td>
+                        </tr>
+                        <tr>
+                            <td>Block Gas Limit</td>
+                            <td>30,000,000</td>
+                            <td>Gas max par bloc</td>
+                        </tr>
+                        <tr>
+                            <td>Block Reward Initial</td>
+                            <td>2.0 DCS</td>
+                            <td>Récompense par bloc trouvé</td>
+                        </tr>
+                        <tr>
+                            <td>Halving Period</td>
+                            <td>Tous les 2 ans</td>
+                            <td>Réduction -25% émission</td>
+                        </tr>
+                        <tr>
+                            <td>Uncle Reward</td>
+                            <td>1.75 DCS</td>
+                            <td>Récompense oncle (87.5%)</td>
+                        </tr>
+                        <tr>
+                            <td>Difficulty Adjustment</td>
+                            <td>LWMA (N=90)</td>
+                            <td>Ajustement tous les blocs</td>
+                        </tr>
+                        <tr>
+                            <td>Premine</td>
+                            <td>10,000,000 DCS (10%)</td>
+                            <td>Allocation Genesis</td>
+                        </tr>
+                        <tr>
+                            <td>Supply Max Théorique</td>
+                            <td>~200,000,000 DCS</td>
+                            <td>Asymptotique (inflation décroissante)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="annex-section">
+                <h3>B. Benchmarks RandomX</h3>
+                <table class="benchmark-table">
+                    <thead>
+                        <tr>
+                            <th>CPU</th>
+                            <th>Hashrate (H/s)</th>
+                            <th>TDP</th>
+                            <th>H/s per Watt</th>
+                            <th>Prix (~EUR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>AMD Ryzen 9 7950X</td>
+                            <td>18,500</td>
+                            <td>170W</td>
+                            <td>108.8</td>
+                            <td>650</td>
+                        </tr>
+                        <tr>
+                            <td>AMD Ryzen 9 5950X</td>
+                            <td>15,000</td>
+                            <td>105W</td>
+                            <td>142.9</td>
+                            <td>550</td>
+                        </tr>
+                        <tr>
+                            <td>AMD Ryzen 7 5800X</td>
+                            <td>9,000</td>
+                            <td>105W</td>
+                            <td>85.7</td>
+                            <td>350</td>
+                        </tr>
+                        <tr>
+                            <td>Intel Core i9-13900K</td>
+                            <td>12,000</td>
+                            <td>125W</td>
+                            <td>96.0</td>
+                            <td>600</td>
+                        </tr>
+                        <tr>
+                            <td>Intel Core i7-12700K</td>
+                            <td>8,500</td>
+                            <td>125W</td>
+                            <td>68.0</td>
+                            <td>400</td>
+                        </tr>
+                        <tr>
+                            <td>Apple M2 Pro</td>
+                            <td>7,000</td>
+                            <td>30W</td>
+                            <td>233.3</td>
+                            <td>N/A (laptop)</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="benchmark-note">* Benchmarks basés sur RandomX (Monero). Hashrates indicatifs.</p>
+            </div>
+
+            <div class="annex-section">
+                <h3>C. Modèle de Sécurité: Résistance Attaque 51%</h3>
+                <div class="security-model">
+                    <h4>Coût d'une Attaque 51% (Estimé)</h4>
+                    <p><strong>Hypothèses:</strong></p>
+                    <ul>
+                        <li>Hashrate réseau: 100 MH/s (après 6 mois)</li>
+                        <li>Attaquant doit contrôler: 51 MH/s</li>
+                        <li>Location AWS/cloud: ~0.50 EUR par 1 KH/s/jour</li>
+                    </ul>
+                    <p><strong>Calcul:</strong></p>
+                    <div class="calculation">
+                        <p>51,000 KH/s × 0.50 EUR × 1 jour = <strong>25,500 EUR/jour</strong></p>
+                        <p>Sur 1 semaine: <strong>178,500 EUR</strong></p>
+                    </div>
+                    <p><strong>Conclusion:</strong> L'attaque 51% est <strong>économiquement viable</strong> en phase initiale (< 6 mois), mais devient prohibitive avec l'adoption (partenariat Free → 500+ MH/s → 250k+ EUR/jour).</p>
+                    <p><strong>Mitigations:</strong></p>
+                    <ul>
+                        <li>Détection comportementale (réorganisations suspectes)</li>
+                        <li>Checkpoints hebdomadaires (Phase 1)</li>
+                        <li>Alerte communauté si hashrate suspect</li>
+                        <li>Croissance rapide du hashrate (objectif Phase 2)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="annex-section">
+                <h3>D. Smart Contract Treasury (ABI)</h3>
+                <div class="code-block">
+                    <p><strong>Adresses Configurées:</strong></p>
+                    <pre>
+TreasuryAccumulationAddress: 0x0000000000000000000000000000000000000001
+TreasuryOwnerAddress (SASU): 0x0000000000000000000000000000000000000002
+DevFeeAddress:               0x0000000000000000000000000000000000000003
+                    </pre>
+                    <p><strong>Transfert Automatique:</strong> Chaque dimanche 00:00 UTC</p>
+                    <p><strong>Fonction Consensus:</strong> <code>transferTreasuryIfSunday()</code> appelée dans <code>Finalize()</code></p>
+                </div>
+            </div>
+
+            <div class="annex-section">
+                <h3>E. Références & Ressources</h3>
+                <div class="references">
+                    <h4>Code Source</h4>
+                    <ul>
+                        <li><strong>GitHub:</strong> github.com/Aqui-oi/go-Ducros</li>
+                        <li><strong>License:</strong> LGPL v3.0 (open source)</li>
+                    </ul>
+
+                    <h4>Documentation Technique</h4>
+                    <ul>
+                        <li>RandomX Specs: github.com/tevador/RandomX</li>
+                        <li>Go-Ethereum: github.com/ethereum/go-ethereum</li>
+                        <li>EVM Opcodes: ethereum.org/en/developers/docs/evm/opcodes</li>
+                    </ul>
+
+                    <h4>Réglementation</h4>
+                    <ul>
+                        <li>MiCA Regulation: eur-lex.europa.eu (Regulation 2023/1114)</li>
+                        <li>5AMLD: Directive (EU) 2018/843</li>
+                    </ul>
+
+                    <h4>Contact</h4>
+                    <ul>
+                        <li><strong>Website:</strong> ducroschain.io</li>
+                        <li><strong>Email:</strong> contact@ducroschain.io</li>
+                        <li><strong>Support:</strong> support@ducroschain.io</li>
+                        <li><strong>Legal:</strong> legal@ducroschain.io</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="version-info">
+                <h3>F. Informations Version</h3>
+                <table class="version-table">
+                    <tr>
+                        <td>Version Whitepaper</td>
+                        <td>1.0.0</td>
+                    </tr>
+                    <tr>
+                        <td>Date Publication</td>
+                        <td>Novembre 2025</td>
+                    </tr>
+                    <tr>
+                        <td>Dernière Mise à Jour</td>
+                        <td>20 Novembre 2025</td>
+                    </tr>
+                    <tr>
+                        <td>Auteur</td>
+                        <td>Alexandre Ducros (Aquí oï)</td>
+                    </tr>
+                    <tr>
+                        <td>Statut</td>
+                        <td>Final (pré-ICO)</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>DUCROS CHAIN</h3>
+                    <p>The CPU-First French Blockchain</p>
+                    <div class="social-links">
+                        <a href="#">GitHub</a>
+                        <a href="#">Twitter</a>
+                        <a href="#">Discord</a>
+                        <a href="#">Telegram</a>
+                    </div>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="#">Documentation</a></li>
+                        <li><a href="#">Block Explorer</a></li>
+                        <li><a href="#">GitHub Repository</a></li>
+                        <li><a href="#">API Documentation</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Cookie Policy</a></li>
+                        <li><a href="#">MiCA Compliance</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p>Email: contact@ducroschain.io</p>
+                    <p>SASU Aquí oï</p>
+                    <p>France</p>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2025 Ducros Chain. Tous droits réservés.</p>
+                <p class="legal-text">Ce whitepaper est conforme au règlement MiCA (Markets in Crypto-Assets) 2024. L'investissement dans les crypto-actifs comporte des risques importants pouvant entraîner la perte totale du capital investi. Les performances passées ne préjugent pas des performances futures.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
